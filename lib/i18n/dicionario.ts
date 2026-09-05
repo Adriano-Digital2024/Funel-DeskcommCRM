@@ -37,6 +37,33 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "números de teste autorizados": { es: "números de prueba autorizados" },
+  "Novos canais começam em modo de teste. Após concluir a configuração, abra Conexões para autorizar seus números de teste ou liberar o público.": { es: "Los canales nuevos empiezan en modo de prueba. Al terminar la configuración, abre Conexiones para autorizar tus números de prueba o habilitar al público." },
+  "IA em modo de teste": { es: "IA en modo de prueba" },
+  "IA aberta ao público": { es: "IA abierta al público" },
+  "IA restrita por origem": { es: "IA restringida por origen" },
+  "Configurar acesso da IA": { es: "Configurar acceso de la IA" },
+  "Acesso da IA no WhatsApp": { es: "Acceso de la IA en WhatsApp" },
+  "Teste com pessoas de confiança antes de liberar o atendimento automático.": { es: "Prueba con personas de confianza antes de habilitar la atención automática." },
+  "Não foi possível carregar o acesso da IA.": { es: "No se pudo cargar el acceso de la IA." },
+  "Use um telefone com DDI por linha, por exemplo +5511999998888.": { es: "Usa un teléfono con prefijo internacional por línea, por ejemplo +5511999998888." },
+  "Acesso da IA atualizado.": { es: "Acceso de la IA actualizado." },
+  "Não foi possível confirmar o salvamento. Reabra este painel para conferir a configuração.": { es: "No se pudo confirmar el guardado. Vuelve a abrir este panel para comprobar la configuración." },
+  "Somente os números desta lista podem receber respostas automáticas neste canal.": { es: "Solo los números de esta lista pueden recibir respuestas automáticas en este canal." },
+  "A lista de teste não restringe o atendimento enquanto a IA está aberta ao público.": { es: "La lista de prueba no restringe la atención mientras la IA esté abierta al público." },
+  "Este canal usa autorizações por origem. Ativar o modo de teste substitui essa regra pela lista abaixo.": { es: "Este canal usa autorizaciones por origen. Activar el modo de prueba sustituye esa regla por la lista de abajo." },
+  "Números autorizados para teste": { es: "Números autorizados para prueba" },
+  "Um telefone com DDI por linha. Lista vazia no modo de teste bloqueia todas as respostas automáticas.": { es: "Un teléfono con prefijo internacional por línea. Una lista vacía en modo de prueba bloquea todas las respuestas automáticas." },
+  "As mensagens continuam chegando ao Inbox, e sua equipe pode responder manualmente. Os testes são mensagens reais no WhatsApp, com os custos normais de uso.": { es: "Los mensajes siguen llegando al Inbox y tu equipo puede responder manualmente. Las pruebas son mensajes reales en WhatsApp, con los costos normales de uso." },
+  "O agente precisa estar publicado e vinculado a este canal. Bloqueios do contato e atendimento humano continuam sendo respeitados.": { es: "El agente debe estar publicado y vinculado a este canal. Se siguen respetando los bloqueos del contacto y la atención humana." },
+  "Salvar lista de teste": { es: "Guardar lista de prueba" },
+  "Ativar modo de teste": { es: "Activar modo de prueba" },
+  "Liberar atendimento ao público": { es: "Habilitar atención al público" },
+  "Liberar a IA para o público?": { es: "¿Habilitar la IA para el público?" },
+  "A lista de teste deixará de limitar as respostas. A IA poderá atender qualquer pessoa que enviar mensagem neste canal, respeitando os demais bloqueios.": { es: "La lista de prueba dejará de limitar las respuestas. La IA podrá atender a cualquier persona que envíe mensajes en este canal, respetando los demás bloqueos." },
+  "Continuar em teste": { es: "Continuar en prueba" },
+  "Confirmar liberação": { es: "Confirmar habilitación" },
+  "Novos canais começam em modo de teste, sem respostas automáticas até você autorizar números ou liberar o público.": { es: "Los canales nuevos empiezan en modo de prueba, sin respuestas automáticas hasta que autorices números o habilites al público." },
   // ─── Cabeçalhos de grupo da barra lateral ───
   //
   // ⚠️ NUNCA TIVERAM TRADUÇÃO, e o defeito era invisível: `Sidebar.tsx:83` já

@@ -807,9 +807,21 @@ entram pelas rotas REAIS do app (`/api/v1/webhooks/in/:token`,
 `POST /api/v1/ai/agents` exige role `admin`/MFA e o agente não é o que está sob
 teste.
 
-**A tela do knob `ai_gate` e do editor de `campanhas_whatsapp` ainda não existe**
-— hoje se liga por script/SQL (`scripts/ativar-gate-elegibilidade-ia.ts`), como o
-`roteamento_de_formulario`. É a dívida declarada desta entrega.
+**Modo de teste do canal (issue #573):** Conexões › Configurar acesso da IA
+agora expõe pré-go-live por lista de telefones e abertura ao público com
+confirmação. Novos canais nascem em teste com lista vazia; os anteriores
+preservam o gate. O pré-go-live NÃO aceita autorizações por origem como
+substitutas da lista. Contrato em [pre-go-live-whatsapp](../specs/pre-go-live-whatsapp.md).
+
+| # | Caso | Expectativa | Cobertura |
+|---|---|---|---|
+| J20.20 | Cadastrar testadores antes do primeiro contato | Só o telefone listado é elegível, mesmo que outro contato tenha autorização por origem | `tests/invariants/pre-go-live-canal.test.ts`, `gate.test.ts`, `consulta-supabase.test.ts`, `drain.test.ts` |
+| J20.21 | Administrador salva, recarrega, remove, abre e volta ao teste | Lista persistente por canal, lista vazia bloqueia todos, abrir exige confirmação | `tests/e2e/pre-go-live-whatsapp.spec.ts`, auth e banco reais, desktop e móvel |
+| J20.22 | Fechar o canal durante geração da resposta | Sink não envia automaticamente; resposta humana continua permitida | `tests/unit/messages-handler-desfechos.test.ts` |
+
+**Dívida restante:** o editor de `campanhas_whatsapp` e a ativação do allowlist
+POR ORIGEM continuam por script/SQL (`scripts/ativar-gate-elegibilidade-ia.ts`).
+O painel não converte silenciosamente esse modo legado em teste ou aberto.
 
 **Dívida no `campanhas_whatsapp`:** o campo `agent_id` de uma campanha é aceito
 no schema mas **NÃO é roteado** — o match só torna o contato elegível

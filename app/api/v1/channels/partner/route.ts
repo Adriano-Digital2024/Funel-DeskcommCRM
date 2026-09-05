@@ -80,6 +80,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     {
       label: PARTNER_CHANNEL_LABEL,
       connected: conectado,
+      channel_session_id: conectado ? sessao.id : null,
       account_id: conectado ? sessao.accountId : null,
       phone_number: conectado ? sessao.phoneNumber : null,
       display_name: conectado ? sessao.displayName : null,

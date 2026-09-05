@@ -15,6 +15,7 @@ import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { requireRole } from "@/lib/auth/require-role";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
 import { createChannelSchema } from "@/lib/schemas/channels";
+import { metadataInicialDoCanal } from "@/lib/ai/elegibilidade/pre-go-live";
 import { createClient } from "@/lib/supabase/server";
 import { getWahaClient, wahaFriendlyError } from "@/lib/waha/client";
 
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       last_status_change_at: new Date().toISOString(),
       consecutive_health_fails: 0,
       daily_message_limit: 250,
-      metadata: {},
+      metadata: metadataInicialDoCanal(),
     })
     .select(CHANNEL_COLUMNS)
     .single();

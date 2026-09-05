@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ApiError } from "@/lib/api/types";
+import { decidirPreGoLiveDoCanalViaSupabase } from "@/lib/ai/elegibilidade/consulta-pre-go-live";
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
 import {
@@ -497,7 +498,24 @@ export async function sendMessageHandler(
     waLid: c.contacts?.wa_lid,
   });
 
-  if (c.channel_sessions?.archived_at) {
+  // Releitura no sink: o operador pode ter fechado o canal enquanto o modelo
+  // gerava a resposta. Envio humano não passa por esta restrição da IA.
+  const acessoAtual = ctx.actor.type === "user" ? null : await decidirPreGoLiveDoCanalViaSupabase(supabase, {
+    organizationId: ctx.organization_id,
+    channelSessionId: c.channel_session_id,
+    contactPhoneNumber: c.contacts?.phone_number ?? "",
+  }).catch(() => ({ permite: false, motivo: "pre_go_live_indisponivel" }));
+  if (acessoAtual && !acessoAtual.permite) {
+    const { data: updated, error } = await supabase.from("messages").update({
+      status: "failed",
+      error_code: acessoAtual.motivo === "pre_go_live_indisponivel" ? "pre_go_live_indisponivel" : "pre_go_live",
+      error_message: acessoAtual.motivo === "pre_go_live_indisponivel"
+        ? "Não foi possível verificar o acesso da IA. Nenhuma mensagem foi enviada."
+        : "Envio automático bloqueado pelo modo de teste do canal.",
+    }).eq("organization_id", ctx.organization_id).eq("id", message.id).select(MSG_COLS).single();
+    if (error || !updated) throw new ApiError(500, "internal_error", undefined, ctx.requestId, "Não foi possível registrar o bloqueio do envio.");
+    message = updated as unknown as Message;
+  } else if (c.channel_sessions?.archived_at) {
     // Canal ARQUIVADO = canal excluído pelo usuário: a sessão já foi deslogada e
     // removida do transporte, e a credencial do canal oficial já foi revogada. É a
     // promessa da migration 0106 ("não é mais elegível para envio") virando
