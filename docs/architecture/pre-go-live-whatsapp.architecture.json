@@ -13,7 +13,7 @@
     { "id": "api", "lane": "servidor", "col": 2, "type": "route", "label": "GET/PATCH channel-sessions/:id/ai-access" },
     { "id": "config", "lane": "banco", "col": 3, "type": "database", "label": "metadata / fn_configurar_pre_go_live_canal" },
     { "id": "gate", "lane": "servidor", "col": 4, "type": "lib", "label": "gate.ts / drain / turnos / sweep / automação" },
-    { "id": "sink", "lane": "servidor", "col": 5, "type": "service", "label": "sendMessageHandler / releitura antes do envio" },
+    { "id": "sink", "lane": "servidor", "col": 5, "type": "service", "label": "sendMessageHandler / redrive watchdog / releitura antes do envio" },
     { "id": "inbox", "lane": "operador", "col": 5, "type": "frontend", "label": "Inbox / conversa real e atendimento humano" },
     { "id": "audit", "lane": "banco", "col": 4, "type": "database", "label": "api_audit_log / channel.ai_access_updated" },
     { "id": "auditTela", "lane": "operador", "col": 5, "type": "frontend", "label": "Audit Log / registro da operação" }

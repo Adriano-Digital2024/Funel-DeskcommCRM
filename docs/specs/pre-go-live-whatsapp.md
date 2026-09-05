@@ -36,7 +36,8 @@ turnos, runtime legado, handoff e follow-up. A automação `send_ai_message`
 checa antes do modelo; o sweep de silêncio usa a mesma regra. O sink
 `sendMessageHandler` relê antes de enviar mensagens não humanas: se o
 operador fechou o canal durante a geração, registra falha `pre_go_live`,
-sem envio nem opt-out. Falha de leitura também não envia.
+sem envio nem opt-out. O redrive de mensagens pendentes em `session-reconciler.ts`
+também relê a lista antes de cada reenvio direto ao WAHA. Falha de leitura não envia.
 Uma requisição já entregue ao provedor não pode ser recolhida por este modo.
 
 ## Sistema vivo
@@ -57,6 +58,7 @@ Uma requisição já entregue ao provedor não pode ser recolhida por este modo.
 - `tests/invariants/pre-go-live-canal.test.ts`: banco real do baseline, privilégios, isolamento, remoção, primeira conversa e atualização sem perda de metadata.
 - `tests/e2e/pre-go-live-whatsapp.spec.ts`: bootstrap/auth/DB reais e interface, inclusive recarga e viewport móvel.
 - `messages-handler-desfechos.test.ts`: bloqueio no sink e envio humano preservado.
+- `tests/invariants/agent-watchdog.test.ts`: reenvio com banco e receiver HTTP reais; remoção de número bloqueia mensagem pendente antes de alcançar o transporte.
 
 O E2E não pareia um telefone nem paga uma chamada de modelo: prova a configuração
 na tela com banco real. A elegibilidade e a ausência de envio são comprovadas
