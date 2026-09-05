@@ -34,4 +34,3 @@ export async function decidirPreGoLiveDoCanalViaSupabase(
     ? { ativo: true, permite: true, motivo: "numero_de_teste" }
     : { ativo: true, permite: false, motivo: "fora_da_lista_de_teste" };
 }
-

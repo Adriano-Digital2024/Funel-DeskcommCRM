@@ -61,4 +61,3 @@ describe("decidirPreGoLiveDoCanalViaSupabase", () => {
     expect(chain.eq).toHaveBeenCalledWith("id", input.channelSessionId);
   });
 });
-
