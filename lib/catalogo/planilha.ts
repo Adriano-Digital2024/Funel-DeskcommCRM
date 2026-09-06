@@ -97,11 +97,21 @@ export function lerPlanilha(
   // linhas é o que evita um relatório com 300 erros iguais.
   const faltando = ["nome", "preco"].filter((c) => !campos.has(c));
   if (faltando.length > 0) {
+    // A recusa NOMEIA a coluna que falta, uma frase por combinação. Quem tem
+    // `nome` e não tem preço, se ler "precisa de uma coluna de nome e de
+    // preço", vai procurar a coluna que já tem — e o arquivo dele fica parado
+    // na primeira tela do catálogo. A frase inteira é a chave de tradução: em
+    // espanhol a ordem das palavras não é a mesma, e montar por pedaços
+    // entregaria frase torta.
+    const pedido =
+      faltando.length === 2
+        ? _t("A planilha precisa de uma coluna de nome e de preço. Encontrei: ")
+        : faltando[0] === "nome"
+          ? _t("A planilha precisa de uma coluna de nome. Encontrei: ")
+          : _t("A planilha precisa de uma coluna de preço. Encontrei: ");
     return {
       erro:
-        _t("A planilha precisa de uma coluna de nome e de preço. Encontrei: ") +
-        (cabecalho.filter((c) => c.trim()).join(", ") || _t("nenhuma coluna")) +
-        ".",
+        pedido + (cabecalho.filter((c) => c.trim()).join(", ") || _t("nenhuma coluna")) + ".",
     };
   }
 

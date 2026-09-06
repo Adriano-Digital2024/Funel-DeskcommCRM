@@ -6798,8 +6798,16 @@ export const DICIONARIO: Traducoes = {
   "sem controle de estoque": { es: "sin control de stock" },
   // Mensajes de error de importación de planilha (lib/catalogo/planilha.ts)
   "A planilha está vazia.": { es: "La planilla está vacía." },
+  // Uma frase por combinação do que falta: a recusa NOMEIA a coluna ausente, e
+  // pedir a coluna que a pessoa já tem é o que faz ela desistir da importação.
   "A planilha precisa de uma coluna de nome e de preço. Encontrei: ": {
     es: "La planilla necesita una columna de nombre y de precio. Encontré: ",
+  },
+  "A planilha precisa de uma coluna de nome. Encontrei: ": {
+    es: "La planilla necesita una columna de nombre. Encontré: ",
+  },
+  "A planilha precisa de uma coluna de preço. Encontrei: ": {
+    es: "La planilla necesita una columna de precio. Encontré: ",
   },
   "sem nome do produto": { es: "sin nombre del producto" },
   "preço não reconhecido (": { es: "precio no reconocido (" },
