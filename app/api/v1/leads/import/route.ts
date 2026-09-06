@@ -93,7 +93,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const pipelineId = String(form.get("pipeline_id") ?? "");
   // `stage_id` é OPCIONAL de propósito: o `ImportarLeads.tsx` nunca manda esse
   // campo (comentário no próprio componente — planilha traz gente NOVA, e
-  // gente nova entra na primeira etapa do funil). Resolvida logo abaixo,
+  // gente nova entra na primeira etapa ABERTA do funil). Resolvida logo abaixo,
   // depois que o Supabase client existir.
   let stageId = String(form.get("stage_id") ?? "");
   if (!pipelineId) {
@@ -130,14 +130,26 @@ export async function POST(req: NextRequest): Promise<Response> {
   const supabase = await createClient();
 
   if (!stageId) {
-    // Primeira etapa do funil, por posição, dentro da organização ativa —
+    // Primeira etapa ABERTA do funil, por posição, dentro da organização ativa —
     // nunca confia em `pipeline_id` sozinho (poderia ser de outro tenant).
+    //
+    // ⚠️ `is_won`/`is_lost` fora, espelhando `funilDeEntrada` em
+    // `lib/leads/nascimento-do-lead.ts` — que é a irmã canônica desta consulta e
+    // carrega o racional: um lead não nasce fechado, e um funil mal ordenado não
+    // pode fazer alguém entrar como "Perdido". Sem os dois filtros, um funil em
+    // que "Pago" foi arrastado para a primeira coluna faz a planilha inteira
+    // nascer como negócio JÁ GANHO (o trigger `fn_crm_lead_close_on_stage`
+    // sobrescreve o `status: "open"` que o handler grava), e no caso simétrico de
+    // perda o segundo trigger aborta cada linha com `lost_reason_required` — 200
+    // na tela, zero leads criados.
     const { data: primeiraEtapa, error: erroEtapa } = await supabase
       .from("crm_stages")
       .select("id")
       .eq("pipeline_id", pipelineId)
       .eq("organization_id", orgId)
       .eq("is_archived", false)
+      .eq("is_won", false)
+      .eq("is_lost", false)
       .order("position", { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -146,7 +158,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       return fail("internal_error", erroEtapa.message, 500, { requestId });
     }
     if (!primeiraEtapa) {
-      return fail("validation_failed", "Este funil não tem etapas.", 422, { requestId });
+      return fail("validation_failed", "Este funil não tem etapas abertas.", 422, { requestId });
     }
     stageId = (primeiraEtapa as { id: string }).id;
   }
