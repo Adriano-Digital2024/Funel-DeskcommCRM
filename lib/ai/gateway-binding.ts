@@ -46,8 +46,12 @@ export interface ModeloResolvido {
  * resolvedor que aceitasse organização opcional acabaria chamado sem ela no
  * caminho que mais importa, aplicando a configuração de ninguém.
  *
- * Sem binding, devolve exatamente o que `resolveLanguageModel` devolvia: este
- * módulo não muda o comportamento de quem não configurou nada.
+ * Sem binding, a ordem é a MESMA do resto do produto (`resolveOrgLlmConfig`):
+ * a credencial ativa e validada do provider da organização e, só então, a chave
+ * da instalação. Esta linha já disse "devolve exatamente o que
+ * `resolveLanguageModel` devolvia"; era verdade até o degrau do meio entrar, e
+ * deixá-la de pé faria a próxima pessoa concluir que a chave do `.env` ainda
+ * vence a chave que a organização cadastrou na tela.
  */
 export async function resolverModeloDoPonto(
   purpose: string,
@@ -213,9 +217,17 @@ async function credencialDaOrganizacao(
         tag: byteaToBuffer(data.api_key_tag),
       }),
     };
-  } catch {
-    // Sem detalhe no log: qualquer eco aqui corre o risco de carregar material
-    // da credencial.
+  } catch (erro) {
+    // Falha FECHADA na ação (segue para a chave da instalação) e ABERTA na
+    // informação. Sem rastro, uma leitura quebrada — baseline sem a tabela,
+    // chave de decifragem trocada — é indistinguível de "esta organização não
+    // cadastrou credencial", e o operador vê a conta do `.env` sendo debitada
+    // sem nunca saber por quê. Vai só a CLASSE do erro: a mensagem pode
+    // carregar material da credencial, o nome do erro não.
+    logger.warn("credencial da organização não pôde ser lida; seguindo para a chave da instalação", {
+      organizationId,
+      erro: erro instanceof Error ? erro.name : typeof erro,
+    });
     return null;
   }
 }
@@ -242,9 +254,13 @@ async function decifrarChave(
       iv: byteaToBuffer(data.api_key_iv),
       tag: byteaToBuffer(data.api_key_tag),
     });
-  } catch {
-    // Sem detalhe no log: qualquer eco aqui corre o risco de carregar material
-    // da credencial.
+  } catch (erro) {
+    // Mesma regra do catch acima: fecha a ação, abre a informação, e o log leva
+    // só a classe do erro.
+    logger.warn("credencial escolhida no painel não pôde ser decifrada; seguindo para o padrão", {
+      credentialId,
+      erro: erro instanceof Error ? erro.name : typeof erro,
+    });
     return null;
   }
 }
