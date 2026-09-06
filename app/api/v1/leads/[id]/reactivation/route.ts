@@ -158,10 +158,12 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     sourceId: leadId,
     actor: { type: "user", id: userId },
     // Nomeia a decisão, nunca o conteúdo da proposta nem dado do negócio.
+    // Canônico em português: quem traduz é a LEITURA (`t(item.reason)`). Ver o
+    // bloco "vocabulario de dominio persistido" em `lib/i18n/dicionario.ts`.
     reason:
       decision === "accept"
-        ? t("Retomada de contato aprovada")
-        : t("Retomada de contato descartada — decisão registrada"),
+        ? "Retomada de contato aprovada"
+        : "Retomada de contato descartada — decisão registrada",
     payload: { proposal_id },
   });
   if (!atividade.ok) {

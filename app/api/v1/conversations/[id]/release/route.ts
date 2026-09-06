@@ -76,7 +76,9 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
     contactId: conv.contact_id,
     tipo: "conversation_released",
     actor: { type: "user", id: user.id, role: authz.org.role },
-    motivo: t("Liberou a conversa de volta para a fila"),
+    // Canônico em português: quem traduz é a LEITURA (`t(item.reason)`). Ver o
+    // bloco "vocabulario de dominio persistido" em `lib/i18n/dicionario.ts`.
+    motivo: "Liberou a conversa de volta para a fila",
   });
 
   return ok(conv, { requestId });

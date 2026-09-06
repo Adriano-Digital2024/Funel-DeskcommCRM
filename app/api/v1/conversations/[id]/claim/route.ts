@@ -109,7 +109,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     contactId: conv.contact_id,
     tipo: "conversation_claimed",
     actor: { type: "user", id: user.id, role: authz.org.role },
-    motivo: t("Assumiu o atendimento desta conversa"),
+    // Canônico em português: quem traduz é a LEITURA (`t(item.reason)`). Ver o
+    // bloco "vocabulario de dominio persistido" em `lib/i18n/dicionario.ts`.
+    motivo: "Assumiu o atendimento desta conversa",
   });
 
   return ok(conv, { requestId });

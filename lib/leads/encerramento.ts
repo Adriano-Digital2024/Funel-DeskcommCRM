@@ -202,10 +202,9 @@ export async function encerraDemanda(
     // O rótulo do tipo já diz "Demanda encerrada" na tela; o reason acrescenta o
     // DESFECHO e, na perda, o motivo — repetir o rótulo aqui deixaria a linha
     // com a mesma frase duas vezes (ver `motivoLegivel` em retorno-crm.ts).
-    reason:
-      input.desfecho === "won"
-        ? traduzir("Ganho", ctx.idioma ?? "pt-BR")
-        : `${traduzir("Perdido —", ctx.idioma ?? "pt-BR")} ${input.motivo}`,
+    // Canônico em português: quem traduz é a LEITURA (`t(item.reason)`). Ver o
+    // bloco "vocabulario de dominio persistido" em `lib/i18n/dicionario.ts`.
+    reason: input.desfecho === "won" ? "Ganho" : `Perdido — ${input.motivo}`,
     payload: {
       desfecho: input.desfecho,
       from_stage_id: (lead as { stage_id: string }).stage_id,

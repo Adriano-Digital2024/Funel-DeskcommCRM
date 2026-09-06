@@ -152,9 +152,9 @@ export async function POST(_req: NextRequest, ctx: RouteCtx): Promise<Response> 
     contactId: conv.contact_id,
     tipo: "conversation_ai_paused",
     actor: { type: "user", id: user.id, role: org.role },
-    motivo: assumiu
-      ? t("Assumiu a conversa e pausou o atendimento automático")
-      : MOTIVO,
+    // Canônico em português: quem traduz é a LEITURA (`t(item.reason)`). Ver o
+    // bloco "vocabulario de dominio persistido" em `lib/i18n/dicionario.ts`.
+    motivo: assumiu ? "Assumiu a conversa e pausou o atendimento automático" : MOTIVO,
     payload: { assumiu_ao_pausar: assumiu },
   });
 

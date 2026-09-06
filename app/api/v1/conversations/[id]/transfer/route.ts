@@ -133,9 +133,11 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
     contactId: conv.contact_id,
     tipo: "conversation_transferred",
     actor: { type: "user", id: user.id, role: authz.org.role },
+    // Canônico em português: quem traduz é a LEITURA (`t(item.reason)`). Ver o
+    // bloco "vocabulario de dominio persistido" em `lib/i18n/dicionario.ts`.
     motivo: input.reason?.trim()
       ? `Transferiu a conversa: ${input.reason.trim()}`
-      : t("Transferiu a conversa para outro atendente"),
+      : "Transferiu a conversa para outro atendente",
     payload: { to_user_id: input.to_user_id },
   });
 
