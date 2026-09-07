@@ -84,7 +84,12 @@ export async function GET(_req: NextRequest): Promise<Response> {
   // run, o agente viu o mundo mais recente. Sem o par de datas — run de um
   // agente antigo, sem `finished_at` — fica valendo o run, que continua sendo a
   // informação mais específica que a instalação tem.
-  const rollbackSuperado = rollbackFoiSuperado(version?.updated_at, run?.finished_at);
+  const rollbackSuperado = rollbackFoiSuperado(
+    version?.updated_at,
+    run?.finished_at,
+    current,
+    run,
+  );
   const running =
     run?.status === "failed_rolled_back" && run.from_version && !rollbackSuperado
       ? run.from_version
