@@ -38,6 +38,10 @@ type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>
 
 export const DICIONARIO: Traducoes = {
   "números de teste autorizados": { es: "números de prueba autorizados" },
+  "1 número de teste autorizado": { es: "1 número de prueba autorizado" },
+  "Nenhum número autorizado — a IA não responde ninguém neste canal.": {
+    es: "Ningún número autorizado — la IA no responde a nadie en este canal.",
+  },
   "Novos canais começam em modo de teste. Após concluir a configuração, abra Conexões para autorizar seus números de teste ou liberar o público.": { es: "Los canales nuevos empiezan en modo de prueba. Al terminar la configuración, abre Conexiones para autorizar tus números de prueba o habilitar al público." },
   "IA em modo de teste": { es: "IA en modo de prueba" },
   "IA aberta ao público": { es: "IA abierta al público" },

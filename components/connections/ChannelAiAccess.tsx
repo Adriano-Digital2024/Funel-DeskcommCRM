@@ -31,8 +31,19 @@ export function ChannelAiAccess({ channelId }: { channelId: string }) {
       {mode && <Badge variant={mode === "open" ? "neutral" : "warning"}>
         {mode === "pre_go_live" ? t("IA em modo de teste") : mode === "open" ? t("IA aberta ao público") : t("IA restrita por origem")}
       </Badge>}
+      {/* A frase inteira por número, e não `${n} ${t("números…")}` montado por
+          pedaços: com um único testador o cartão dizia "1 números de teste
+          autorizados" — achado olhando a tela, que é o único jeito de achar
+          concordância. E montar por pedaços não sobrevive à tradução: em
+          espanhol a forma muda junto. Lista vazia é o estado inicial de todo
+          canal novo e merece a frase que diz o que fazer, não um "0". */}
       {mode === "pre_go_live" && <p className="text-xs text-muted-foreground">
-        {query.data?.data.test_phone_numbers.length ?? 0} {t("números de teste autorizados")}
+        {(() => {
+          const n = query.data?.data.test_phone_numbers.length ?? 0;
+          if (n === 0) return t("Nenhum número autorizado — a IA não responde ninguém neste canal.");
+          if (n === 1) return t("1 número de teste autorizado");
+          return `${n} ${t("números de teste autorizados")}`;
+        })()}
       </p>}
       <Button variant="outline" size="sm" onClick={() => { setOpen(true); void query.refetch(); }}>
         {t("Configurar acesso da IA")}
