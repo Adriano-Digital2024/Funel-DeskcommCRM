@@ -7110,10 +7110,15 @@ export const DICIONARIO: Traducoes = {
 
   // ─── Importar leads de planilha (extraído do PR #418) ───
   "Importar leads de uma planilha": { es: "Importar leads desde una planilla" },
-  "Um arquivo CSV com uma linha por lead. Os leads entram na primeira etapa do funil escolhido.": {
-    es: "Un archivo CSV con una línea por lead. Los leads entran en la primera etapa del embudo elegido.",
+  "Um arquivo CSV com uma linha por lead. Os leads entram na primeira etapa aberta do funil escolhido.": {
+    es: "Un archivo CSV con una línea por lead. Los leads entran en la primera etapa abierta del embudo elegido.",
   },
   "Funil de destino": { es: "Embudo de destino" },
+  // As duas mensagens de recusa da ROTA de importação. Nasceram no #597, que
+  // consertou a validação que este PR tinha acabado de traduzir — a frase velha
+  // ("…o funil e a etapa de destino") deixou de ser emitida por qualquer caminho.
+  "Escolha o funil de destino.": { es: "Elige el embudo de destino." },
+  "Este funil não tem etapas abertas.": { es: "Este embudo no tiene etapas abiertas." },
   "Escolher o arquivo CSV": { es: "Elegir el archivo CSV" },
   "leads criados": { es: "leads creados" },
   "contatos novos": { es: "contactos nuevos" },

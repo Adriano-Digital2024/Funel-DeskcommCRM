@@ -88,14 +88,25 @@ export async function POST(req: NextRequest): Promise<Response> {
     return fail("validation_failed", t("Envie o arquivo no campo 'file'."), 422, { requestId });
   }
   const enviado = arquivo as unknown as File;
-  // ⚠️ O funil e a etapa vêm do FORM, e são conferidos contra a organização
-  // ativa logo abaixo por `createLeadHandler` — que já responde 404 para etapa
-  // de outra org e 422 para etapa que não é do funil informado. É o mesmo gate
-  // do POST unitário; reescrevê-lo aqui seria a segunda verdade.
+  // ⚠️ O funil vem do FORM, e é conferido contra a organização ativa logo
+  // abaixo por `createLeadHandler` — que já responde 404 para etapa de outra
+  // org e 422 para etapa que não é do funil informado. É o mesmo gate do POST
+  // unitário; reescrevê-lo aqui seria a segunda verdade.
   const pipelineId = String(form.get("pipeline_id") ?? "");
-  const stageId = String(form.get("stage_id") ?? "");
-  if (!pipelineId || !stageId) {
-    return fail("validation_failed", t("Escolha o funil e a etapa de destino."), 422, { requestId });
+  // `stage_id` é OPCIONAL de propósito: o `ImportarLeads.tsx` nunca manda esse
+  // campo (comentário no próprio componente — planilha traz gente NOVA, e
+  // gente nova entra na primeira etapa ABERTA do funil). Resolvida logo abaixo,
+  // depois que o Supabase client existir.
+  //
+  // ⚠️ CONVERGÊNCIA INDEPENDENTE entre os PRs #597 e #600. O #597 REMOVEU a
+  // validação que exigia `stage_id` (o front nunca manda esse campo, então ela
+  // devolvia 422 em 100% das importações); o #600, saído da mesma main, envolveu
+  // ESSA MESMA linha errada em `t()`. Nenhum dos dois lados sozinho está certo —
+  // um devolve o bug, o outro perde a tradução. Vale a lógica do #597 com a
+  // tradução do #600, e as duas frases novas entraram no dicionário.
+  let stageId = String(form.get("stage_id") ?? "");
+  if (!pipelineId) {
+    return fail("validation_failed", t("Escolha o funil de destino."), 422, { requestId });
   }
 
   if (enviado.size > CSV_MAX_BYTES) {
@@ -126,6 +137,41 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const supabase = await createClient();
+
+  if (!stageId) {
+    // Primeira etapa ABERTA do funil, por posição, dentro da organização ativa —
+    // nunca confia em `pipeline_id` sozinho (poderia ser de outro tenant).
+    //
+    // ⚠️ `is_won`/`is_lost` fora, espelhando `funilDeEntrada` em
+    // `lib/leads/nascimento-do-lead.ts` — que é a irmã canônica desta consulta e
+    // carrega o racional: um lead não nasce fechado, e um funil mal ordenado não
+    // pode fazer alguém entrar como "Perdido". Sem os dois filtros, um funil em
+    // que "Pago" foi arrastado para a primeira coluna faz a planilha inteira
+    // nascer como negócio JÁ GANHO (o trigger `fn_crm_lead_close_on_stage`
+    // sobrescreve o `status: "open"` que o handler grava), e no caso simétrico de
+    // perda o segundo trigger aborta cada linha com `lost_reason_required` — 200
+    // na tela, zero leads criados.
+    const { data: primeiraEtapa, error: erroEtapa } = await supabase
+      .from("crm_stages")
+      .select("id")
+      .eq("pipeline_id", pipelineId)
+      .eq("organization_id", orgId)
+      .eq("is_archived", false)
+      .eq("is_won", false)
+      .eq("is_lost", false)
+      .order("position", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (erroEtapa) {
+      return fail("internal_error", erroEtapa.message, 500, { requestId });
+    }
+    if (!primeiraEtapa) {
+      return fail("validation_failed", t("Este funil não tem etapas abertas."), 422, { requestId });
+    }
+    stageId = (primeiraEtapa as { id: string }).id;
+  }
+
   const resumo: ResumoDaImportacao = {
     total_linhas: lido.leads.length + lido.erros.length,
     criados: 0,
