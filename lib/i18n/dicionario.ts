@@ -6740,8 +6740,8 @@ export const DICIONARIO: Traducoes = {
 
   // ─── Importar leads de planilha (extraído do PR #418) ───
   "Importar leads de uma planilha": { es: "Importar leads desde una planilla" },
-  "Um arquivo CSV com uma linha por lead. Os leads entram na primeira etapa do funil escolhido.": {
-    es: "Un archivo CSV con una línea por lead. Los leads entran en la primera etapa del embudo elegido.",
+  "Um arquivo CSV com uma linha por lead. Os leads entram na primeira etapa aberta do funil escolhido.": {
+    es: "Un archivo CSV con una línea por lead. Los leads entran en la primera etapa abierta del embudo elegido.",
   },
   "Funil de destino": { es: "Embudo de destino" },
   "Escolher o arquivo CSV": { es: "Elegir el archivo CSV" },
