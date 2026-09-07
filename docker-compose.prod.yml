@@ -32,10 +32,19 @@ services:
     # default é quem NÃO tem APP_IMAGE no .env — avaliação, ou um .env que
     # perdeu a chave. Nenhum desses casos quer código não lançado; quem quiser o
     # topo da main pede `APP_IMAGE=…:latest` explicitamente.
-    image: ${APP_IMAGE:-ghcr.io/melgarafael/deskcommcrm:stable}
-    pull_policy: ${APP_PULL_POLICY:-always}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: deskcomm-app:local
+    pull_policy: never
     restart: unless-stopped
     env_file: .env
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    ports:
+      - "127.0.0.1:3000:3000"
     depends_on:
       srh:
         condition: service_started
@@ -89,13 +98,17 @@ services:
     # default): o app pinado numa release e o runtime do agente de
     # IA rodando código não lançado, sobre o banco da release. `:stable` é a
     # última release publicada — pareia com o app em vez de correr na frente.
-    image: ${WORKER_IMAGE:-ghcr.io/melgarafael/deskcomm-worker:stable}
-    pull_policy: ${WORKER_PULL_POLICY:-always}
     build:
       context: .
       dockerfile: Dockerfile.worker
+    image: deskcomm-worker:local
+    pull_policy: never
     restart: unless-stopped
     env_file: .env
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
     environment:
       # dentro da rede do compose, o WAHA é o serviço 'waha' na porta interna 3000
       WAHA_API_BASE_URL: http://waha:3000
@@ -209,11 +222,11 @@ services:
     # serviço `restart: unless-stopped`, isso significa que o cron do cliente só
     # voltava se a VPS tivesse internet e o mirror do Alpine estivesse de pé,
     # justamente no momento em que a máquina está se recuperando de algo.
-    image: ${SCHEDULER_IMAGE:-ghcr.io/melgarafael/deskcomm-scheduler:stable}
-    pull_policy: ${SCHEDULER_PULL_POLICY:-always}
     build:
       context: .
       dockerfile: Dockerfile.scheduler
+    image: deskcomm-scheduler:local
+    pull_policy: never
     restart: unless-stopped
     depends_on:
       app:
@@ -228,8 +241,8 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
     environment:
       DOMAIN: ${DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
@@ -252,3 +265,4 @@ volumes:
 networks:
   internal:
     driver: bridge
+

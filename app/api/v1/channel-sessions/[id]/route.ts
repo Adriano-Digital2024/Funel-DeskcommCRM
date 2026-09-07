@@ -154,9 +154,20 @@ export async function GET(
   const nomeSessao =
     session.provider === CHANNEL_PROVIDER_WAHA ? session.waha_session_name : null;
   if (!waha || !nomeSessao) {
-    // Nada a checar ao vivo (transporte fora do ar, ou canal que não vive nele):
-    // devolve o que está no DB, sinalizando que o estado não foi confirmado agora.
-    return ok(comImpacto({ ...session, waha_configured: false }), { requestId });
+    // Canal oficial não tem sessão no WAHA para consultar. Mesmo assim,
+    // carimbamos `last_health_check_at` para que a tela mostre "Verificado em
+    // vez de "Ainda não verificado" — o health check de verdade (Graph API)
+    // roda no cron de saúde periódico.
+    const checkedAt = new Date().toISOString();
+    await supabase
+      .from("channel_sessions")
+      .update({ last_health_check_at: checkedAt })
+      .eq("organization_id", activeOrg.orgId)
+      .eq("id", id)
+      .is("last_health_check_at", null);
+    return ok(comImpacto({ ...session, waha_configured: false, last_health_check_at: checkedAt }), {
+      requestId,
+    });
   }
 
   let liveStatus = session.status as string;

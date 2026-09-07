@@ -63,6 +63,38 @@ export async function metaSessionByWebhookToken(
 }
 
 /**
+ * Resolve a sessão ativa de um canal oficial pelo `meta_phone_number_id`.
+ * Usado como fallback no webhook quando o `webhook_path_token` do path não
+ * casua com nenhuma sessão ativa (ex.: canal reconectado com token novo).
+ *
+ * Arquivada não conta — same rationale de `metaSessionByWebhookToken`.
+ */
+export async function metaSessionByPhoneNumberId(
+  phoneNumberId: string,
+): Promise<MetaWebhookSession | null> {
+  if (!phoneNumberId) return null;
+
+  const admin = createAdminClient();
+  const base = () =>
+    admin
+      .from("channel_sessions")
+      .select("id, organization_id, meta_waba_id")
+      .eq("meta_phone_number_id", phoneNumberId)
+      .eq("provider", CHANNEL_PROVIDER_META);
+  const { data } = await queryTolerantToMissingArchived(
+    () => base().is(ARCHIVED_AT, null).maybeSingle(),
+    () => base().maybeSingle(),
+  );
+
+  if (!data) return null;
+  return {
+    id: data.id,
+    organizationId: data.organization_id,
+    wabaId: data.meta_waba_id ?? null,
+  };
+}
+
+/**
  * A sessão oficial ATIVA da organização (se houver). Usada pela tela de templates
  * para saber QUAL WABA espelhar — e para dizer ao operador o que fazer quando não
  * há nenhuma, em vez de mostrar uma tabela vazia sem explicação.

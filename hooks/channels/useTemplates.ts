@@ -63,3 +63,23 @@ export function useSyncTemplates() {
     },
   });
 }
+
+export function useCreateMetaTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (draft: {
+      name: string;
+      language: string;
+      category: string;
+      components: unknown[];
+    }) =>
+      apiClient.post<{ data: SyncCounts }>("/api/v1/channels/templates", {
+        acao: "criar",
+        ...draft,
+      }),
+    onError: showApiError,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["channel-templates"] });
+    },
+  });
+}

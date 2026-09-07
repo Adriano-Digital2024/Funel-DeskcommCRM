@@ -15,6 +15,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveMetaCreds } from "./credentials";
 import { sendTemplate } from "./send-template";
 
 export interface SendTemplateForSessionInput {
@@ -52,10 +54,35 @@ export async function sendTemplateForSession(
 
   if (error) throw new Error(`template_lookup_failed: ${error.message}`);
 
+  // Resolver credenciais da sessão (sessão primeiro, env como fallback)
+  const admin = createAdminClient();
+  const { data: sessao } = await admin
+    .from("channel_sessions")
+    .select("meta_phone_number_id")
+    .eq("organization_id", input.organizationId)
+    .eq("provider", "meta_cloud")
+    .is("archived_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const phoneNumberId = sessao?.meta_phone_number_id;
+  if (!phoneNumberId) {
+    throw new Error("meta_not_configured: nenhuma sessão ativa com phone_number_id para esta organização");
+  }
+
+  const creds = await resolveMetaCreds(admin, {
+    organizationId: input.organizationId,
+    phoneNumberId,
+  });
+  if (!creds) {
+    throw new Error("meta_not_configured: nenhuma credencial para este número (nem na sessão, nem no ambiente)");
+  }
+
   const resultado = await sendTemplate({
-    phoneNumberId: process.env.META_PHONE_NUMBER_ID ?? "",
-    token: process.env.META_SYSTEM_USER_TOKEN ?? "",
-    graphVersion: process.env.META_GRAPH_VERSION ?? "v22.0",
+    phoneNumberId: creds.phoneNumberId,
+    token: creds.token,
+    graphVersion: creds.graphVersion,
     to: input.to,
     binding: {
       name: input.name,

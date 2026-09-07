@@ -17115,6 +17115,48 @@ grant  execute on function public.comando_da_conversa(public.conversations) to a
 -- packaging proíbe pedir a quem opera uma VPS.
 notify pgrst, 'reload schema';
 
+-- ---- DeepSeek entra como provider próprio (migration 0204) ----
+-- A 0127 abriu `provider` como vocabulário aberto; aqui o catálogo curado ganha
+-- os dois modelos do DeepSeek e o custo deles. Idempotente (`on conflict do
+-- update`): o `update.sh` re-aplica o baseline inteiro a cada atualização, e
+-- sem o upsert os preços corrigidos pelo dono seriam sobrescritos — não, o
+-- upsert SOBRESCREVE por desenho, no mesmo molde do catálogo 0101: o que esta
+-- migration semeia é o fato do produto, e preço do produto novo não tem escolha
+-- de dono a preservar (os dois modelos nasceram aqui).
+insert into public.ai_models
+  (provider, model_id, display_name, description,
+   input_price_per_million_cents, output_price_per_million_cents, supports_tools)
+values
+  ('deepseek', 'DeepSeek-V4-Flash-0731', 'DeepSeek V4 Flash (0731)',
+   'Modelo padrão do provedor DeepSeek para atender o cliente: rápido, barato e com suporte a ferramentas do CRM. Preço PROVISÓRIO a confirmar no painel do provedor.',
+   27, 110, true),
+  ('deepseek', 'DeepSeek-V4-Pro', 'DeepSeek V4 Pro',
+   'Raciocínio estendido do DeepSeek para tarefas pesadas (análise, planejamento). Preço PROVISÓRIO a confirmar no painel do provedor.',
+   55, 219, true)
+on conflict (provider, model_id) do update set
+  display_name = excluded.display_name,
+  description = excluded.description,
+  input_price_per_million_cents = excluded.input_price_per_million_cents,
+  output_price_per_million_cents = excluded.output_price_per_million_cents,
+  supports_tools = excluded.supports_tools;
+
+update public.ai_models set is_default_for_provider = false
+ where provider = 'deepseek' and is_default_for_provider;
+
+update public.ai_models set is_default_for_provider = true
+ where provider = 'deepseek' and model_id = 'DeepSeek-V4-Flash-0731';
+
+insert into public.ai_pricing
+  (model, prompt_cents_per_million_tokens, completion_cents_per_million_tokens, notes)
+values
+  ('DeepSeek-V4-Flash-0731', 27, 110, 'catálogo 0204 — PROVISÓRIO, confirmar no provedor'),
+  ('DeepSeek-V4-Pro',        55, 219, 'catálogo 0204 — PROVISÓRIO, confirmar no provedor')
+on conflict (model) do update set
+  prompt_cents_per_million_tokens = excluded.prompt_cents_per_million_tokens,
+  completion_cents_per_million_tokens = excluded.completion_cents_per_million_tokens,
+  notes = excluded.notes,
+  superseded_at = null;
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ ESTE BLOCO É, DE PROPÓSITO, O ÚLTIMO DO ARQUIVO. Apêndice novo entra ANTES

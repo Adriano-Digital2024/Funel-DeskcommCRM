@@ -17,6 +17,8 @@ import type { LanguageModel } from "ai";
 
 import { env } from "@/lib/env";
 
+import { DEEPSEEK_ENDPOINT } from "@/lib/agent-engine/edge/llm/providers";
+
 /** Endpoint da OpenRouter. Compatível com a API da OpenAI, então o provider
  *  `@ai-sdk/openai` fala com ela sem dependência nova. */
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -86,6 +88,19 @@ export function resolveLanguageModel(model: ModelId): LanguageModel | null {
 
   if (id.startsWith("openai/") && env.OPENAI_API_KEY) {
     return createOpenAI({ apiKey: env.OPENAI_API_KEY })(id.slice("openai/".length));
+  }
+
+  if (id.startsWith("deepseek/") && env.DEEPSEEK_API_KEY) {
+    return createOpenAI({ apiKey: env.DEEPSEEK_API_KEY, baseURL: DEEPSEEK_ENDPOINT })(
+      id.slice("deepseek/".length),
+    );
+  }
+
+  // Fallback: DeepSeek sem prefixo (compatibilidade com models salvos sem prefixo)
+  if (id === "deepseek-chat" || id === "deepseek-coder" || id.startsWith("deepseek-")) {
+    if (env.DEEPSEEK_API_KEY) {
+      return createOpenAI({ apiKey: env.DEEPSEEK_API_KEY, baseURL: DEEPSEEK_ENDPOINT })(id);
+    }
   }
 
   return null;

@@ -93,23 +93,27 @@ describe("adapter meta_cloud — endereçamento", () => {
 });
 
 describe("adapter meta_cloud — configuração", () => {
-  it("sem credencial NÃO está configurado", () => {
+  it("isConfigured sempre true — a credencial vive na sessão (banco), não no env", () => {
     vi.stubEnv("META_PHONE_NUMBER_ID", "");
     vi.stubEnv("META_SYSTEM_USER_TOKEN", "");
-    expect(a().isConfigured()).toBe(false);
-  });
-
-  it("com credencial está configurado", () => {
-    configurar();
     expect(a().isConfigured()).toBe(true);
   });
 
-  it("não configurado é NOOP no envio, nunca exceção", async () => {
-    // Mesmo contrato do outro canal: a UI mostra banner, o handler grava `queued`.
+  it("sem credencial no env NEM na sessão, o envio LANÇA", async () => {
+    // Segue o padrão do canal intermediado (zernio): isConfigured=true, send lança
+    // quando não há credencial nem na sessão nem no ambiente. O handler grava
+    // `failed` com motivo, em vez de `queued` sem erro.
     vi.stubEnv("META_PHONE_NUMBER_ID", "");
     vi.stubEnv("META_SYSTEM_USER_TOKEN", "");
-    const r = await a().send({ organizationId: ORG, sessionRef: "x", to: "5531999", kind: "text", body: "oi" });
-    expect(r).toEqual({ externalId: null });
+    sessaoNoBanco.token = null;
+    await expect(
+      a().send({ organizationId: ORG, sessionRef: "x", to: "5531999", kind: "text", body: "oi" }),
+    ).rejects.toThrow("meta_not_configured");
+  });
+
+  it("com credencial no env, está configurado", () => {
+    configurar();
+    expect(a().isConfigured()).toBe(true);
   });
 
   it("os códigos carregam o nome do provider — por isso vivem no adapter", () => {

@@ -30,6 +30,7 @@ import { decryptKey, byteaToBuffer } from "@/lib/crypto/aes_gcm";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { DEEPSEEK_ENDPOINT } from "@/lib/agent-engine/edge/llm/providers";
 import { OPENROUTER_BASE_URL, resolveLanguageModel, type ModelId } from "./gateway";
 
 export interface ModeloResolvido {
@@ -174,6 +175,8 @@ function instanciar(
       return createGoogleGenerativeAI({ apiKey })(modelId);
     case "openrouter":
       return createOpenAI({ apiKey, baseURL: baseUrl ?? OPENROUTER_BASE_URL })(modelId);
+    case "deepseek":
+      return createOpenAI({ apiKey, baseURL: DEEPSEEK_ENDPOINT })(modelId);
     default:
       return null;
   }
