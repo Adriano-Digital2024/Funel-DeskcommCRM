@@ -8,6 +8,20 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 ## [Não lançado]
 
+## [1.16.1] — 2026-09-07
+
+### Corrigido
+
+- **A conferência de imagens do instalador passa a olhar o registro que a instalação usa** Antes de baixar as imagens, o instalador confere se as três existem e são
+  públicas. Essa conferência olhava sempre para o registro do projeto, mesmo em
+  instalações configuradas para usar outro — então ela dizia "está tudo publicado"
+  depois de conferir pacotes que não eram os que a instalação ia baixar, e o erro
+  só aparecia mais tarde, na hora de subir. Agora ela olha o mesmo registro que a
+  instalação usa.
+
+  Nada muda para quem não trocou o registro: continua conferindo os mesmos
+  pacotes, com o mesmo resultado.
+
 ## [1.16.0] — 2026-09-07
 
 ### Adicionado
@@ -3121,7 +3135,8 @@ Primeira versão marcada do DeskcommCRM. O projeto vinha sendo desenvolvido publ
 
 - **Node 22 é obrigatório para desenvolvimento.** A suíte de invariantes instancia o cliente do Supabase, que exige o `WebSocket` global — nativo apenas a partir do Node 22. Isso não afeta quem apenas hospeda: a VPS roda a imagem pronta.
 
-[Não lançado]: https://github.com/melgarafael/DeskcommCRM/compare/v1.16.0...HEAD
+[Não lançado]: https://github.com/melgarafael/DeskcommCRM/compare/v1.16.1...HEAD
+[1.16.1]: https://github.com/melgarafael/DeskcommCRM/compare/v1.16.0...v1.16.1
 [1.16.0]: https://github.com/melgarafael/DeskcommCRM/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/melgarafael/DeskcommCRM/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/melgarafael/DeskcommCRM/compare/v1.14.0...v1.15.0
