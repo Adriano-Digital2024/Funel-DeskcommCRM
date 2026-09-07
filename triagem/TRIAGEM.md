@@ -282,6 +282,38 @@ controle mais barato de todos e leva dez segundos.
 > **A regra curta:** timeout não é asserção. Antes de atribuir um vermelho a um PR, pergunte
 > *quem mais estava usando esta máquina* e *este job chegou a rodar teste?*
 
+### Uma quinta, e ela é a mais convincente: o ambiente de QA visual estragou a árvore
+
+Montar o ambiente de prova de tela **muda o worktree**, e três dessas mudanças fazem a suíte
+unitária reprovar por motivos que nada têm a ver com os PRs. Medido em 06/09/2026, ao rodar a
+conta de N vias (passe 11-bis) no MESMO worktree onde o QA visual tinha rodado: **13 arquivos
+vermelhos**, e nenhum era dos cinco PRs.
+
+| o que o setup faz | o que reprova |
+|---|---|
+| `mv supabase/migrations /tmp/...` (é o que o CI faz, para o `supabase start` não aplicar a cadeia) | `manifest-x-migrations`, `kind-check-migration-x-baseline`, `migracao-nao-arma-ninguem`, `migrations-nao-encolhem-vocabulario` — o diretório está VAZIO |
+| `cp .env.e2e .env.local` (o seed exige) | `rate-limit` e tudo que valida env: `tests/setup/vitest.setup.ts` carrega `.env.local` para dentro do `process.env` |
+| specs de prova escritas à mão em `tests/e2e/` | `e2e-cobertura-completa` — spec no disco que o CI não declara |
+| capturas em `.superpowers/evidence/` | `evidencia-citada` |
+
+O sintoma é perfeito: um vermelho grande, plausível, logo depois de juntar cinco PRs — exatamente
+onde você **espera** que a interação apareça.
+
+**A regra:** o worktree do QA visual é descartável e **não serve para rodar gate**. A conta de N
+vias roda numa árvore limpa. Antes de acreditar em qualquer vermelho de suíte ali:
+
+```bash
+git status --porcelain | wc -l          # tem de ser 0
+ls supabase/migrations/ | wc -l         # tem de ser >0
+ls .env.local 2>/dev/null               # tem de NÃO existir
+```
+
+E a reconciliação do `CLAUDE.md` denuncia isso de graça: naquela rodada o rodapé disse `14 failed`
+e o `grep -c FAIL` contou `17`. Os dois números medem coisas diferentes, mas a divergência é o
+convite para olhar QUAIS arquivos — e ali os nomes contam a história inteira.
+
+---
+
 ### E há uma quarta origem: a sonda que você mesmo escreveu
 
 Antes de acreditar num diagnóstico de infra, confira se o comando que o produziu **existe**.
