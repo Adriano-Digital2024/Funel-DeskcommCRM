@@ -94,6 +94,14 @@ export function montarRequisicaoDeProva(
           generationConfig: { maxOutputTokens: 1 },
         },
       };
+    case "deepseek":
+      // Fala o dialeto da OpenAI, então a prova é o mesmo chat/completions
+      // mínimo dos outros dois, apontado ao endpoint do provedor.
+      return {
+        url: "https://api.deepseek.com/chat/completions",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: { model: modelo, max_tokens: 1, messages: msg },
+      };
     default:
       // Fail-closed: provedor que este módulo não sabe cobrar não recebe um
       // "ok" por omissão — seria a frase tranquilizadora de novo.

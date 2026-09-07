@@ -130,16 +130,21 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
     [qc],
   );
 
-  // Health check ao vivo de todos os canais — consulta o WAHA e grava
-  // last_health_check_at. É a verificação de saúde de verdade (o status do DB
-  // pode estar velho se o WAHA caiu sem emitir evento).
+  // Health check ao vivo: consulta o backend e grava last_health_check_at.
+  // Canais oficiais (Meta) não dependem do WAHA — a rota já os trata
+  // separadamente. Canais pareados por QR só podem ser checados com o serviço
+  // no ar; sem ele, o skip evita erros 503.
   const runHealthCheck = useCallback(
     async (list: ChannelSession[]) => {
-      if (!wahaConfigured || list.length === 0) return;
+      if (list.length === 0) return;
+      const alvos = wahaConfigured
+        ? list
+        : list.filter((c) => !c.waha_session_name);
+      if (alvos.length === 0) return;
       setChecking(true);
       try {
         await Promise.allSettled(
-          list.map((c) => apiClient.get(`/api/v1/channel-sessions/${c.id}`)),
+          alvos.map((c) => apiClient.get(`/api/v1/channel-sessions/${c.id}`)),
         );
         invalidate();
       } finally {
@@ -234,7 +239,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
             <Button
               variant="outline"
               size="sm"
-              disabled={checking || !wahaConfigured}
+              disabled={checking}
               onClick={() => void runHealthCheck(list)}
             >
               <ArrowsClockwise

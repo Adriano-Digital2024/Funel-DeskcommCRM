@@ -1,4 +1,3 @@
-import { requireSupportWrite } from "@/lib/impersonate/support";
 /**
  * GET  /api/v1/channels/templates — o espelho local + o CONTRATO derivado de cada um.
  * POST /api/v1/channels/templates — força um sync com a Graph API.
@@ -16,6 +15,7 @@ import type { NextRequest, NextResponse } from "next/server";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { metaSessionForOrg } from "@/lib/channels/meta/session";
+import { resolveMetaCreds } from "@/lib/channels/meta/credentials";
 import { normalizeRejectedReason } from "@/lib/channels/meta/webhook";
 import { deriveTemplateContract, describeAddress } from "@/lib/channels/meta/template-contract";
 import { syncTemplates } from "@/lib/channels/meta/template-sync";
@@ -146,10 +146,15 @@ export async function GET(): Promise<NextResponse> {
   });
 }
 
-export async function POST(_req: NextRequest): Promise<NextResponse> {
-  const supportDenied = await requireSupportWrite();
-  if (supportDenied) return supportDenied;
-
+/**
+ * Duas ações no POST:
+ *  - sync (default): sincroniza espelho com a Graph API
+ *  - criar: cria uma definição nova na conta Meta via Graph API
+ *
+ * A criação vivia só no canal intermediado. Operador com canal oficial não tinha
+ * como criar pelo CRM — precisava sair para o Business Manager.
+ */
+export async function POST(req: NextRequest): Promise<NextResponse> {
   const requestId = randomUUID();
   const r = await orgOrFail(requestId);
   if (!r.autorizado) return r.resposta;
@@ -159,15 +164,77 @@ export async function POST(_req: NextRequest): Promise<NextResponse> {
     return fail("invalid_request", "no_meta_channel", 400, { requestId });
   }
 
-  const token = process.env.META_SYSTEM_USER_TOKEN ?? "";
-  if (!token) return fail("invalid_request", "missing_meta_token", 400, { requestId });
+  // Resolver credenciais da sessão (sessão primeiro, env como fallback)
+  const admin = createAdminClient();
+  const { data: sessaoDetalhes } = await admin
+    .from("channel_sessions")
+    .select("meta_phone_number_id")
+    .eq("organization_id", r.orgId)
+    .eq("provider", "meta_cloud")
+    .is("archived_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const phoneNumberId = sessaoDetalhes?.meta_phone_number_id;
+  if (!phoneNumberId) {
+    return fail("invalid_request", "no_phone_number_id", 400, { requestId });
+  }
+
+  const creds = await resolveMetaCreds(admin, {
+    organizationId: r.orgId,
+    phoneNumberId,
+  });
+  if (!creds) {
+    return fail("invalid_request", "missing_meta_token", 400, { requestId });
+  }
+
+  const corpo = (await req.json().catch(() => ({}))) as {
+    acao?: string;
+    name?: string;
+    language?: string;
+    category?: string;
+    components?: unknown[];
+  };
 
   try {
+    // Criar template novo na conta Meta
+    if (corpo.acao === "criar") {
+      if (!corpo.name || !corpo.language || !Array.isArray(corpo.components)) {
+        return fail("invalid_request", "Faltam nome, idioma ou conteúdo.", 400, { requestId });
+      }
+
+      const url = `https://graph.facebook.com/${creds.graphVersion}/${sessao.wabaId}/message_templates`;
+      const metaRes = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${creds.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: corpo.name,
+          language: corpo.language,
+          category: (corpo.category ?? "UTILITY") as string,
+          components: corpo.components,
+        }),
+      });
+
+      const metaJson = (await metaRes.json()) as Record<string, unknown>;
+      if (!metaRes.ok) {
+        const detalhe = metaJson?.error
+          ? JSON.stringify(metaJson.error).slice(0, 300)
+          : metaRes.statusText;
+        return fail("upstream_error", `Meta: ${detalhe}`, 502, { requestId });
+      }
+    }
+
+    // Sincroniza sempre — inclusive depois de criar: a definição nasce em
+    // revisão, e o operador precisa VER que ela existe e está pendente.
     const counts = await syncTemplates({
       organizationId: r.orgId,
       wabaId: sessao.wabaId,
-      token,
-      graphVersion: process.env.META_GRAPH_VERSION ?? "v22.0",
+      token: creds.token,
+      graphVersion: creds.graphVersion,
     });
     return ok(counts);
   } catch (err) {

@@ -23,7 +23,7 @@ import { fail } from "@/lib/api/wrappers";
 import { lerEnvelopeMeta } from "@/lib/channels/meta/envelope";
 import { parseMetaWebhook, verificationChallenge, verifyMetaSignature } from "@/lib/channels/meta/webhook";
 import { ingestMetaInbound } from "@/lib/channels/meta/ingest";
-import { metaSessionByWebhookToken } from "@/lib/channels/meta/session";
+import { metaSessionByWebhookToken, metaSessionByPhoneNumberId } from "@/lib/channels/meta/session";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -37,7 +37,20 @@ interface RouteCtx {
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const { token } = await ctx.params;
   const session = await metaSessionByWebhookToken(token);
-  if (!session) return new NextResponse("not found", { status: 404 });
+  if (!session) {
+    // Se o token do path não casa com nenhuma sessão, aceita o handshake
+    // sempre que o verify_token bater. O Meta chama GET uma única vez
+    // durante a configuração — se falhar, o webhook nunca recebe nada.
+    const challenge = verificationChallenge(
+      req.nextUrl.searchParams,
+      process.env.META_WEBHOOK_VERIFY_TOKEN ?? "",
+    );
+    if (challenge === null) return new NextResponse("forbidden", { status: 403 });
+    return new NextResponse(challenge, {
+      status: 200,
+      headers: { "content-type": "text/plain" },
+    });
+  }
 
   const challenge = verificationChallenge(
     req.nextUrl.searchParams,
@@ -56,13 +69,38 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const requestId = randomUUID();
   const { token } = await ctx.params;
 
-  const session = await metaSessionByWebhookToken(token);
-  if (!session) return fail("not_found", "unknown webhook token", 404, { requestId });
+  // 1. Tenta resolver pelo token do path (fluxo normal).
+  let session = await metaSessionByWebhookToken(token);
 
   const rawBody = await req.text();
   const appSecret = process.env.META_APP_SECRET ?? "";
   if (!verifyMetaSignature(rawBody, req.headers.get("x-hub-signature-256"), appSecret)) {
     return fail("unauthorized", "invalid_signature", 401, { requestId });
+  }
+
+  // 2. Se o token do path não casou, tenta pelo phone_number_id do payload.
+  //    Isso acontece quando o canal foi reconectado e gerou um novo
+  //    webhook_path_token — o Meta ainda aponta para o antigo.
+  if (!session) {
+    const leituraFallback = lerEnvelopeMeta(rawBody);
+    if (leituraFallback.ok) {
+      const eventosFallback = parseMetaWebhook(leituraFallback.envelope);
+      const inboundEvent = eventosFallback.find((e) => e.kind === "inbound_message");
+      const phoneId = inboundEvent?.phoneNumberId;
+      if (phoneId) {
+        session = await metaSessionByPhoneNumberId(phoneId);
+        if (session) {
+          logger.warn("[meta.webhook] sessão resolvida por phone_number_id (token do path não casou)", {
+            request_id: requestId,
+            phone_number_id: phoneId,
+            session_id: session.id,
+          });
+        }
+      }
+    }
+    if (!session) {
+      return fail("not_found", "unknown webhook token", 404, { requestId });
+    }
   }
 
   // ─── O contrato do fio, ANTES do parser ───────────────────────────────────
@@ -96,6 +134,13 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const eventos = parseMetaWebhook(leitura.envelope);
   const admin = createAdminClient();
   const now = new Date().toISOString();
+
+  logger.warn("[meta.webhook] eventos parseados", {
+    request_id: requestId,
+    count: eventos.length,
+    kinds: eventos.map((e) => e.kind),
+    session_id: session.id,
+  });
   /**
    * Desfecho de cada ingestão. Existe porque a versão anterior fazia
    * `await ingestMetaInbound(...)` e DESCARTAVA o retorno: um insert que falhava
@@ -108,6 +153,13 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     // O evento chega carimbado com a WABA; se não for a desta sessão, ignoramos.
     // Confiar no `entry.id` para escolher a org seria aceitar o corpo como fonte.
     if (session.wabaId && e.wabaId && e.wabaId !== session.wabaId) continue;
+
+    logger.warn("[meta.webhook] processando evento", {
+      request_id: requestId,
+      kind: e.kind,
+      waba_id: e.wabaId,
+      external_id: "externalId" in e ? e.externalId : undefined,
+    });
 
     if (e.kind === "inbound_message") {
       // A metade que faltava: mensagem do contato vira linha no inbox, move lead,

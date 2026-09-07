@@ -40,6 +40,12 @@ const envSchema = z.object({
   // Consertar a irmã da OpenAI e deixar esta é o modo de falha desta família:
   // ao mexer aqui, confira as três de uma vez.
   OPENROUTER_API_KEY: z.string().min(1).optional(),
+  // A QUARTA irmã — DeepSeek, adicionado como provedor próprio (migration 0204).
+  // Mesmo modo de falha da família acima: `llmEdgeConfigFromEnv` lê a chave e
+  // `loadEnv` remove o que o schema não declara, então sem esta linha a chave
+  // sumiria no boot do worker e todo turno com provider deepseek morreria em
+  // `LlmNotConfiguredError`. Ao mexer aqui, confira as quatro de uma vez.
+  DEEPSEEK_API_KEY: z.string().min(1).optional(),
   // Modelo default do agente quando a org não define o dela (knob, nunca constante).
   AGENT_DEFAULT_MODEL: z.string().min(1).default('claude-sonnet-4-5'),
   // Teto de conexões por pool do pg. Sem valor = pg decide (default 10).
