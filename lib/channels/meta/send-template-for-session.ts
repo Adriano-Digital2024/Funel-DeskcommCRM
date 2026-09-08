@@ -26,6 +26,7 @@ export interface SendTemplateForSessionInput {
   name: string;
   language: string;
   values: Record<string, string>;
+  beforeSend?: () => Promise<void>; 
 }
 
 /**
@@ -41,6 +42,10 @@ export async function sendTemplateForSession(
   input: SendTemplateForSessionInput,
 ): Promise<string | null> {
   if (!input.name || !input.language) {
+  // Executa beforeSend se fornecido
+  if (input.beforeSend) {
+    await input.beforeSend();
+  }
     throw new Error("template_incompleto: nome e idioma são obrigatórios em type=template");
   }
 

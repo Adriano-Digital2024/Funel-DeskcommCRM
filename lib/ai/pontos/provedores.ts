@@ -91,6 +91,7 @@ export const PROVEDORES = [
     aceitaEndpointProprio: false,
     catalogoSincronizavel: false,
     ondePegarAChave: "https://platform.deepseek.com/api_keys",
+    prefixoDaChave: "sk-…",
   },
 ] as const satisfies readonly ProvedorSuportado[];
 // `as const satisfies` e não anotação de tipo: a anotação apagaria os literais
