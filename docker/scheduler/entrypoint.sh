@@ -56,12 +56,26 @@ SEGREDO_SEGURO="$(printf '%s' "$INTERNAL_SECRET" | sed "s/'/'\\\\''/g")"
 # ⚠️ E o comentário fica AQUI, fora da string: dentro de CRONS= ele não seria
 # comentário, seria DADO — e crase em prosa dentro de aspas duplas o shell
 # EXECUTA. Foi o que quebrou o entrypoint na primeira tentativa desta linha.
+# agent-dispatcher fica em 1×/min E NA PRIMEIRA LINHA de propósito: o teste
+# de shell (scheduler-entrypoint.test.sh) usa a 1ª linha para provar que o
+# segredo atravessa o sh do crond intacto e assume o prefixo `* * * * *`. A
+# rota é NO-OP (dispatcher nativo aposentado) e não toca no banco — o custo de
+# mantê-la em 1×/min é desprezível, e removê-la quebraria cron configs de
+# self-hosters que já a agendam + a cerca tests/unit/cron-routes-scheduled.test.ts.
+#
+# CADÊNCIA DE 1×/min → 1×/5min (2026-09-09, resposta ao alerta de CPU do Supabase,
+# projeto Funel-DeskcommCRM, >80%): os quatro crons abaixo abriam transação a cada
+# minuto (claim do followup + varredura de confirmação, drain do event_log,
+# roteamento, recuperação de mensagens presas). A 5 min o custo cai 80%, e o
+# atraso máximo de cada um (≤5 min) é irrelevante para a cadência natural das
+# features — o drain do event_log, por exemplo, já tem o loop interno do worker
+# (runEventLogDrainLoop) como rede principal; este cron é só a rede de segurança.
 CRONS="
 * * * * *|25|api/v1/cron/agent-dispatcher
-* * * * *|25|api/v1/cron/followup-flow-worker
-* * * * *|45|api/v1/cron/event-log-drain
-* * * * *|25|api/v1/cron/routing-worker
-* * * * *|25|api/v1/cron/recover-stuck-messages
+*/5 * * * *|25|api/v1/cron/followup-flow-worker
+*/5 * * * *|45|api/v1/cron/event-log-drain
+*/5 * * * *|25|api/v1/cron/routing-worker
+*/5 * * * *|25|api/v1/cron/recover-stuck-messages
 */5 * * * *|25|api/v1/cron/storage-redaction?limit=50
 */5 * * * *|25|api/v1/cron/snooze-watcher
 */5 * * * *|25|api/v1/cron/attendant-heartbeat
