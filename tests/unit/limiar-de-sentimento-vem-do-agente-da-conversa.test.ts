@@ -50,9 +50,9 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/ai/log-invocation", () => ({ logInvocation: vi.fn() }));
 vi.mock("@/lib/ai/cost", () => ({ computeCost: vi.fn(async () => 1) }));
 vi.mock("@/lib/ai/gateway-binding", () => ({ resolverModeloDoPonto: vi.fn() }));
-vi.mock("ai", () => ({ generateObject: vi.fn() }));
+vi.mock("ai", () => ({ generateText: vi.fn() }));
 
-import { generateObject } from "ai";
+import { generateText } from "ai";
 
 import { processSentiment } from "@/workers/ai-sentiment-worker";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -284,10 +284,13 @@ beforeEach(() => {
     model: "modelo-dublê",
     modelId: "anthropic/claude-haiku-4-5",
   } as unknown as Awaited<ReturnType<typeof resolverModeloDoPonto>>);
-  vi.mocked(generateObject).mockResolvedValue({
-    object: { sentiment_score: NOTA, reasoning_short: "cliente reclamando de recorrência" },
+  vi.mocked(generateText).mockResolvedValue({
+    text: JSON.stringify({
+      sentiment_score: NOTA,
+      reasoning_short: "cliente reclamando de recorrência",
+    }),
     usage: { inputTokens: 10, outputTokens: 5 },
-  } as unknown as Awaited<ReturnType<typeof generateObject>>);
+  } as unknown as Awaited<ReturnType<typeof generateText>>);
 });
 
 describe("limiar de sentimento — o agente da conversa é quem manda (#486)", () => {

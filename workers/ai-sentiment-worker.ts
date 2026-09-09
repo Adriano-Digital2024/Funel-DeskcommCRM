@@ -2,8 +2,21 @@
  * ai-sentiment-worker — classifies the sentiment of inbound messages.
  *
  * Consumes `message.received` events (parallel to ai-response-worker).
- * Uses `anthropic/claude-haiku-4-5` via Vercel AI Gateway with generateObject
- * and a strict Zod schema so the result is always typed.
+ * Uses a provider-agnostic generateText + strict JSON contract (validated by a
+ * Zod schema) so the result is always typed — e o classificador roda também em
+ * provedores que não expõem `generateObject`/saída estruturada (DeepSeek).
+ *
+ * ## Por que não `generateObject`
+ *
+ * O `generateObject` do AI SDK depende de o provider suportar saída estruturada
+ * (json_schema no OpenAI-compat, tool_use no Anthropic). O DeepSeek — o provider
+ * desta instalação — responde 200 com texto corrido e o SDK devolve
+ * "No object generated: the model did not return a response." Medido em
+ * produção (2026-09-09): binding sentiment_classify→deepseek ativo, a chamada
+ * chegava ao provider e o object nunca vinha. Aqui o texto é gerado por
+ * `generateText` (que o DeepSeek executa — é o mesmo caminho do seam do agente)
+ * e o JSON é extraído e validado pelo schema. Mesmo contrato de saída, sem
+ * depender do modo estruturado do provider.
  *
  * Design principles (CLAUDE.md):
  * - Service-role admin client bypasses RLS → EVERY query filters `organization_id`
@@ -13,7 +26,7 @@
  * - `console.log` is forbidden — only `console.warn`/`console.error` with prefix.
  */
 
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 
 import { resolverAgenteDaConversa } from "@/lib/ai/agents/agente-da-conversa";
@@ -55,6 +68,27 @@ const sentimentSchema = z.object({
     .max(280)
     .describe("Justificativa curta da nota, em NO MÁXIMO 100 caracteres"),
 });
+
+/**
+ * Extrai e valida o JSON do texto do modelo. Tolerante a cercas markdown e a
+ * texto antes/depois do objeto — modelo não é parser. Devolve o objeto já
+ * validado pelo schema; lança com mensagem curta (vira finish_reason='error').
+ */
+function validarSentimentoDoTexto(texto: string): z.infer<typeof sentimentSchema> {
+  const inicio = texto.indexOf("{");
+  const fim = texto.lastIndexOf("}");
+  if (inicio === -1 || fim === -1 || fim < inicio) {
+    throw new Error("No object generated: resposta sem objeto JSON.");
+  }
+  const cru: unknown = JSON.parse(texto.slice(inicio, fim + 1));
+  const parsed = sentimentSchema.safeParse(cru);
+  if (!parsed.success) {
+    throw new Error(
+      `No object generated: resposta não casou o schema (${parsed.error.issues.length} problema(s)).`,
+    );
+  }
+  return parsed.data;
+}
 
 export interface SentimentResult {
   skipped: boolean;
@@ -213,25 +247,21 @@ export async function processSentiment(event: EventRow): Promise<SentimentResult
     let completionTokens = 0;
 
     try {
-      const generated = await generateObject({
+      // `generateText` + JSON estrito em vez de `generateObject`: o DeepSeek
+      // não devolve saída estruturada (json_schema/tool_use) e o generateObject
+      // morria com "No object generated" (ver cabeçalho). Texto cru o DeepSeek
+      // gera — mesmo caminho do seam do agente. 256 tokens seguram o custo; o
+      // JSON de um score + justificativa curta cabe folgado (pico medido: 146).
+      const generated = await generateText({
         model: sentimentModel,
-        schema: sentimentSchema,
         system: SENTIMENT_SYSTEM_PROMPT,
         prompt: body,
         temperature: 0,
-        // 80 era pequeno demais e nunca tinha sido exercitado (o worker morria
-        // antes, na autenticação). `generateObject` com Anthropic usa modo
-        // FERRAMENTA: o JSON vai dentro de um tool_use, que custa bem mais que
-        // texto puro. Medido com mensagens reais desta instalação: 2 de 3
-        // paravam em `stop_reason: max_tokens` com o JSON cortado no meio —
-        // daí o "No object generated: response did not match schema", que
-        // parecia erro de esquema e era truncamento. Pico observado: 146 sem
-        // as descrições, 84 com elas. 256 dá folga sem virar cheque em branco.
         maxOutputTokens: 256,
         abortSignal: abortController.signal,
       });
 
-      result = generated.object;
+      result = validarSentimentoDoTexto(generated.text);
 
       const usage = generated.usage as
         | {
