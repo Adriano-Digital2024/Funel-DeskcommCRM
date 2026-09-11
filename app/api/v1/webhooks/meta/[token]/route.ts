@@ -150,14 +150,35 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const desfechos: string[] = [];
 
   for (const e of eventos) {
-    // O evento chega carimbado com a WABA; se não for a desta sessão, ignoramos.
-    // Confiar no `entry.id` para escolher a org seria aceitar o corpo como fonte.
-    if (session.wabaId && e.wabaId && e.wabaId !== session.wabaId) continue;
+    // ─── Resolução de sessão ───────────────────────────────────────────────
+    // A Meta Cloud API entrega webhooks de TODOS os WABAs do app numa URL
+    // ÚNICA. O token do path resolve a sessão "primária" (a que o operador
+    // configurou), mas eventos de outros WABAs sob o mesmo app chegam na
+    // mesma URL e precisam ser roteados pela sessão correta.
+    //
+    // Segurança: a ORGANIZAÇÃO vem do token (fonte confiável). O
+    // phone_number_id do payload resolve QUAL sessão daquela organização
+    // recebeu. Duas organizações com o mesmo número continuam protegidas
+    // pelo índice único parcial (migration 0165) — a query não cruza orgs.
+    let effectiveSession = session;
+    if (session.wabaId && e.wabaId && e.wabaId !== session.wabaId) {
+      // WABA diferente: tenta resolver pelo phone_number_id do evento.
+      const resolved = await metaSessionByPhoneNumberId(
+        "phoneNumberId" in e ? (e as { phoneNumberId: string }).phoneNumberId : "",
+      );
+      if (resolved && resolved.organizationId === session.organizationId) {
+        effectiveSession = resolved;
+      } else {
+        // Sem sessão para este número nesta organização: ignora.
+        continue;
+      }
+    }
 
     logger.warn("[meta.webhook] processando evento", {
       request_id: requestId,
       kind: e.kind,
       waba_id: e.wabaId,
+      session_id: effectiveSession.id,
       external_id: "externalId" in e ? e.externalId : undefined,
     });
 
@@ -170,7 +191,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       // resolvia a sessão só pelo `phone_number_id` do payload — e duas
       // organizações com o mesmo número faziam a mensagem ser descartada para
       // as duas, com 200 na resposta (issue #236).
-      const r = await ingestMetaInbound(admin, e, { organizationId: session.organizationId });
+      const r = await ingestMetaInbound(admin, e, { organizationId: effectiveSession.organizationId });
       desfechos.push(r.status);
       if (r.status === "failed" || r.status === "no_session") {
         // 2xx continua (a Meta re-entregaria em loop), mas a falha NÃO fica muda:
@@ -189,7 +210,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       await admin
         .from("meta_templates")
         .update({ status: e.event, rejected_reason: e.reason, updated_at: now })
-        .eq("organization_id", session.organizationId)
+        .eq("organization_id", effectiveSession.organizationId)
         .eq("waba_id", e.wabaId)
         .eq("name", e.templateName)
         .eq("language", e.templateLanguage);
@@ -197,7 +218,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       await admin
         .from("messages")
         .update({ status: e.status === "failed" ? "failed" : "sent", updated_at: now })
-        .eq("organization_id", session.organizationId)
+        .eq("organization_id", effectiveSession.organizationId)
         .eq("external_id", e.externalId);
     }
   }

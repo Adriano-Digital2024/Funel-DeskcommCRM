@@ -42,11 +42,12 @@ export async function sendTemplateForSession(
   input: SendTemplateForSessionInput,
 ): Promise<string | null> {
   if (!input.name || !input.language) {
+    throw new Error("template_incompleto: nome e idioma são obrigatórios em type=template");
+  }
+
   // Executa beforeSend se fornecido
   if (input.beforeSend) {
     await input.beforeSend();
-  }
-    throw new Error("template_incompleto: nome e idioma são obrigatórios em type=template");
   }
 
   const { data: linha, error } = await db
