@@ -71,6 +71,16 @@ describe("a opção 'Google Meet com acesso aberto' na tela de configurações",
     expect(cartao).toContainElement(screen.getByTestId("meet-acesso-aberto"));
   });
 
+  it("quem já conectou o Google lê, no mesmo cartão, que a opção só vale depois de reconectar", () => {
+    render(<MeetComAcessoAberto ligadoInicial={false} podeMudar />);
+
+    // O escopo do espaço aberto só entra no consentimento: sem esta frase, quem
+    // conectou antes liga a opção e o Meet continua nascendo fechado, calado.
+    const frase = screen.getByTestId("meet-acesso-aberto-reconectar");
+    expect(frase).toHaveTextContent("só passa a valer depois de reconectá-la");
+    expect(frase.closest("section")).toContainElement(screen.getByTestId("meet-acesso-aberto-interruptor"));
+  });
+
   it("sem permissão: o interruptor não mexe e a tela diz por quê (controle)", () => {
     render(<MeetComAcessoAberto ligadoInicial={false} podeMudar={false} />);
 

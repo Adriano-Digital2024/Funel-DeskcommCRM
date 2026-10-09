@@ -446,8 +446,9 @@ export function colegasPodemMexerNaAgendaLigado(settings: unknown): boolean {
  *
  * Nunca lança: um jsonb torto não pode derrubar Configurações.
  */
+/** O AVISO DE RISCO da opção — a frase que a tela mostra ao lado do interruptor. */
 export const AVISO_MEET_ABERTO =
-  "Aviso: com esta opção ligada, qualquer pessoa com o link entra na reunião sem pedir para participar.";
+  "⚠ Com o Meet aberto, quem tiver o link da reunião entra sozinho, sem que ninguém o admita. O link é a porta: não o publique onde circula livremente.";
 
 export function meetAbertoLigado(settings: unknown): boolean {
   const raiz =

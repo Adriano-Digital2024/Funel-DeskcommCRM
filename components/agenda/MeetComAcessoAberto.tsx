@@ -7,6 +7,7 @@ import {
   type ErroMeetAberto,
 } from "@/app/actions/settings/definirMeetAberto";
 import { Switch } from "@/components/ui/switch";
+import { AVISO_MEET_ABERTO } from "@/lib/schemas/settings";
 import { useT } from "@/hooks/i18n/useT";
 
 /**
@@ -33,11 +34,10 @@ import { useT } from "@/hooks/i18n/useT";
  */
 
 /**
- * O AVISO DE RISCO (#2063). Exportado pelo nome porque é ele que se procura
- * na tela — e porque o texto é a mesma frase em todo lugar.
+ * O AVISO DE RISCO (#2063). Mora em `lib/schemas/settings.ts`, ao lado da
+ * leitura da opção, e é reexportado aqui porque é ele que se procura na tela.
  */
-export const AVISO_MEET_ABERTO =
-  "⚠ Com o Meet aberto, quem tiver o link da reunião entra sozinho, sem que ninguém o admita. O link é a porta: não o publique onde circula livremente.";
+export { AVISO_MEET_ABERTO };
 
 /**
  * A MEIA BOCA DO SELF-HOST (#2063, item 4). No self-host quem conecta o Google
@@ -124,6 +124,15 @@ export function MeetComAcessoAberto({
 
       <p className="text-sm text-text-muted" data-testid="meet-acesso-aberto-self-host">
         {t(AVISO_SELF_HOST)}
+      </p>
+
+      {/* O escopo do espaço aberto só entra no consentimento: quem conectou
+          antes de ligar a opção não o tem, e o gate do executor fica fechado
+          até a reconexão. */}
+      <p className="text-sm text-text-muted" data-testid="meet-acesso-aberto-reconectar">
+        {t(
+          "Se a agenda do Google já estava conectada, a opção só passa a valer depois de reconectá-la: é na reconexão que o Google concede a permissão de criar o Meet aberto.",
+        )}
       </p>
 
       {!podeMudar && (

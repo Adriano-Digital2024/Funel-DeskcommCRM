@@ -58,7 +58,7 @@ describe("meet aberto — estado ligado (opção + escopo)", () => {
   });
 
   it("o aviso de risco acompanha a opção", () => {
-    expect(AVISO_MEET_ABERTO).toContain("qualquer pessoa com o link entra");
+    expect(AVISO_MEET_ABERTO).toContain("quem tiver o link da reunião entra sozinho");
   });
 });
 

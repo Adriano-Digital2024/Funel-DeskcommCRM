@@ -13604,6 +13604,10 @@ export const DICIONARIO: Traducoes = {
     {
       es: "En autoalojamiento, quien conecta Google usa su propia app OAuth: activa la Meet API de Google Cloud y agrega el ámbito meetings.space.created en la pantalla de consentimiento de tu proyecto; sin eso, Google rechaza la creación del espacio abierto y el enlace sale común.",
     },
+  "Se a agenda do Google já estava conectada, a opção só passa a valer depois de reconectá-la: é na reconexão que o Google concede a permissão de criar o Meet aberto.":
+    {
+      es: "Si la agenda de Google ya estaba conectada, la opción solo empieza a valer después de reconectarla: es en la reconexión donde Google concede el permiso de crear el Meet abierto.",
+    },
   "Atendentes podem mexer na agenda dos colegas": {
     es: "Los asesores pueden modificar la agenda de sus colegas",
   },
