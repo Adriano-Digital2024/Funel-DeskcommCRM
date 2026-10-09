@@ -11,8 +11,8 @@ morre quando o atendimento é devolvido — e a devolução automática (cron
 `handoff-devolucao`) limpava essa trava sem ninguém clicar.
 
 Agora existe `contacts.ai_opt_out`, a marca permanente "sempre atendimento
-humano", separada da trava de handoff. Quem marca na ficha do contato liga a IA
-para de imediato e nenhuma devolução — manual ou automática — a desfaz; só a
+humano", separada da trava de handoff. Quem marca na ficha do contato faz a IA
+parar de imediato e nenhuma devolução — manual ou automática — a desfaz; só a
 ficha desliga. Todos os caminhos que tentam assumir ou reatribuir o contato a
 respeitam: devolução (manual e automática), reautorização da IA, guard de envio,
 worker de resposta, varredura de silêncio e elegibilidade por canal. O rodízio e
