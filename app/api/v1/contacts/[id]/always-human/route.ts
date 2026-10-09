@@ -128,7 +128,9 @@ async function trocar(_req: NextRequest, ctx: Context, ligar: boolean): Promise<
     resourceType: "contact",
     resourceId: id,
     requestId,
-    metadata: { display_name: (alterado as { display_name: string | null }).display_name },
+    // Sem nome: auditoria é append-only e a anonimização (LGPD) não a alcança —
+    // o `contact_id` já identifica (mesma regra do contato pessoal).
+    metadata: { contact_id: id, origem: "tela_do_contato" },
   });
 
   return ok({ data: alterado }, { requestId });
