@@ -565,10 +565,24 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
     return fail("internal_error", leadsComScore.error, 500, { requestId });
   }
 
-  const leadsComConversa = await withConversas(
+  // As tarefas entram NO MEIO da cadeia, e não no fim: a resposta continua
+  // saindo de `withMarcadoresDoContato`, a última etapa que as cercas do quadro
+  // vigiam (`kanban-atalho-conversa`, `funil-mostra-dados-do-cliente`,
+  // `funil-filtro-de-tag-le-as-duas-caixas`). A ordem não muda o resultado: cada
+  // etapa só acrescenta o próprio campo ao lead.
+  const leadsComTarefas = await withTarefas(
     supabase,
     (pipeline as Pipeline).organization_id,
     leadsComScore.leads,
+  );
+  if (leadsComTarefas.error) {
+    return fail("internal_error", leadsComTarefas.error, 500, { requestId });
+  }
+
+  const leadsComConversa = await withConversas(
+    supabase,
+    (pipeline as Pipeline).organization_id,
+    leadsComTarefas.leads,
   );
   if (leadsComConversa.error) {
     return fail("internal_error", leadsComConversa.error, 500, { requestId });
@@ -583,19 +597,10 @@ export async function GET(_req: NextRequest, ctx: RouteCtx): Promise<Response> {
     return fail("internal_error", leadsComMarcadores.error, 500, { requestId });
   }
 
-  const leadsComTarefas = await withTarefas(
-    supabase,
-    (pipeline as Pipeline).organization_id,
-    leadsComMarcadores.leads,
-  );
-  if (leadsComTarefas.error) {
-    return fail("internal_error", leadsComTarefas.error, 500, { requestId });
-  }
-
   const board: BoardData = {
     pipeline: pipeline as Pipeline,
     stages: (stages ?? []) as Stage[],
-    leads: leadsComTarefas.leads,
+    leads: leadsComMarcadores.leads,
   };
 
   return ok(board, { requestId });
