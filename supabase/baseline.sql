@@ -53371,3 +53371,48 @@ end $dias$;
 
 comment on column public.channel_knobs.prospeccao_dias is
   'Dias da semana em que a PROSPECÇÃO pode abordar (0=domingo … 6=sábado). Só a prospecção lê isto; resposta, disparo em massa e retomada seguem allow_sunday. Default = todos os dias (comportamento anterior).';
+
+-- ---- catálogo: GPT-6 Luna, GPT-6.1 Sol e GPT-6 Astra (migration 0646) ----
+-- O dump --schema-only não traz seed pós-snapshot. Sem este apêndice, clones
+-- novos (install.sh) e clones atualizando (update.sh reaplica baseline.sql)
+-- ficam sem a geração 6 da OpenAI em Provedores de IA e no seletor do agente.
+-- As DUAS tabelas com os MESMOS números (invariante catálogo×preço). Não mexe
+-- no padrão (segue gpt-5.6-terra). Racional e fonte dos preços no cabeçalho
+-- da migration.
+insert into public.ai_models
+  (provider, model_id, display_name, description, context_window,
+   input_price_per_million_cents, output_price_per_million_cents, supports_tools)
+values
+  ('openai', 'gpt-6-luna', 'GPT-6 Luna',
+   'O mais barato da linha 6, para atendimento de alto volume e classificação.',
+   1050000, 10, 50, true),
+  ('openai', 'gpt-6.1-sol', 'GPT-6.1 Sol',
+   'Equilíbrio de custo e capacidade da linha 6.',
+   1050000, 200, 1000, true),
+  ('openai', 'gpt-6-astra', 'GPT-6 Astra',
+   'O mais capaz da OpenAI; custo alto.',
+   1050000, 1000, 5000, true)
+on conflict (provider, model_id) do update set
+  display_name = excluded.display_name,
+  description = excluded.description,
+  context_window = excluded.context_window,
+  input_price_per_million_cents = excluded.input_price_per_million_cents,
+  output_price_per_million_cents = excluded.output_price_per_million_cents,
+  supports_tools = excluded.supports_tools,
+  deprecated_at = null;
+
+-- ---------------------------------------------------------------------------
+-- 2. contabilidade de custo — a MESMA lista, mesmos números (senão o gasto é
+--    somado com preço de outro modelo, ou não é somado e some do orçamento).
+-- ---------------------------------------------------------------------------
+insert into public.ai_pricing
+  (model, prompt_cents_per_million_tokens, completion_cents_per_million_tokens, notes)
+values
+  ('gpt-6-luna',     10,   50, 'catálogo 0646 — acima de 272k tokens de entrada, 20/75'),
+  ('gpt-6.1-sol',   200, 1000, 'catálogo 0646 — acima de 272k tokens de entrada, 400/1500'),
+  ('gpt-6-astra',  1000, 5000, 'catálogo 0646 — acima de 272k tokens de entrada, 2000/7500')
+on conflict (model) do update set
+  prompt_cents_per_million_tokens = excluded.prompt_cents_per_million_tokens,
+  completion_cents_per_million_tokens = excluded.completion_cents_per_million_tokens,
+  notes = excluded.notes,
+  superseded_at = null;
