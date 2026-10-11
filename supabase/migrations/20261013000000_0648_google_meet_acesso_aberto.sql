@@ -1,5 +1,5 @@
 -- manifest: Porta de escrita da opção "Google Meet já com acesso aberto" (issue #2063, PR #2089) — `fn_definir_google_meet_acesso_aberto`, a irmã das 0262/0343: manager, suporte de escrita e MFA conferidos por auth.uid(), chave de topo `settings.google_meet_acesso_aberto` (nunca dentro de `settings.agenda`, que a fn_agenda_settings substitui inteira), só o `true` explícito liga, e devolve {ligado,mudou}.
--- ---- Porta de escrita da opção "Meet com acesso aberto" (migration 0647) ----
+-- ---- Porta de escrita da opção "Meet com acesso aberto" (migration 0648) ----
 --
 -- Issue #2063 (PR #2089). A opção `google_meet_acesso_aberto` nasce DESLIGADA em
 -- toda organização, e esta é a ÚNICA porta que a liga.
