@@ -16,7 +16,11 @@
  *      os convidados;
  *   3. desligada (o padrão), o comportamento da main é o mesmo byte a byte:
  *      `conferenceData.createRequest` no POST, o link do Calendar chegando
- *      DEPOIS sem virar escrita nenhuma.
+ *      DEPOIS sem virar escrita nenhuma;
+ *   4. a escrita no Google que cai DEPOIS do espaço nascer (429/5xx/rede, o
+ *      503 medido pelo review de 09/10) não perde o link: a passada seguinte
+ *      reentra no caminho aberto e publica COM ele — e uma segunda falha
+ *      seguida não cria outro espaço nem repete escrita sem fim.
  */
 import { describe, expect, it } from "vitest";
 
@@ -116,7 +120,15 @@ function banco(opcaoLigada: boolean) {
     if (resultado.base) linha.google_base_projection = resultado.base;
     if ("etag" in resultado) linha.google_etag = resultado.etag ?? null;
     if ("conflict" in resultado) linha.google_conflict = resultado.conflict ?? null;
-    if (resultado.clear_pending) linha.google_pending_write = null;
+    // Como `fn_google_appointment` em `retry_creation`: o POST que falhou
+    // volta a ser reserva, para a MESMA criação ser repetida, não outra.
+    if (
+      resultado.retry_creation &&
+      !linha.google_base_projection &&
+      (linha.google_pending_write as { method?: string } | null)?.method === "POST"
+    ) {
+      linha.google_pending_write = { reservation: true };
+    } else if (resultado.clear_pending) linha.google_pending_write = null;
     if (resultado.ack) linha.google_synced_local_revision = linha.google_local_revision;
   };
   const tabela = (registro: unknown) => {
@@ -174,7 +186,10 @@ function banco(opcaoLigada: boolean) {
 }
 
 /** O Google de mentira: guarda o evento escrito e devolve o eco de sempre. */
-function google(eventoInicial?: Record<string, unknown>) {
+function google(eventoInicial?: Record<string, unknown>, falharPrimeiraEscrita: boolean | number = false) {
+  // `true` falha a primeira escrita (503 transitório); um número N falha as N
+  // primeiras — é o retry com backoff do review de 09/10, medido duas vezes.
+  let falhas = typeof falharPrimeiraEscrita === "number" ? falharPrimeiraEscrita : falharPrimeiraEscrita ? 1 : 0;
   let remoto: Record<string, unknown> | null = eventoInicial ?? null;
   const escritas: Array<{ metodo: string; corpo: Record<string, unknown> }> = [];
   const espacosCriados: unknown[] = [];
@@ -186,6 +201,12 @@ function google(eventoInicial?: Record<string, unknown>) {
       return json({ name: "spaces/abc", meetingUri: LINK, config: { accessType: "OPEN" } });
     }
     const corpo = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+    // Falha transitória (429/5xx/rede) na escrita, DEPOIS de o espaço já ter
+    // nascido — exatamente a janela que o review de 09/10 mediu.
+    if (falhas > 0 && (metodo === "POST" || metodo === "PATCH")) {
+      falhas -= 1;
+      return json({ error: { code: 503 } }, 503);
+    }
     if (metodo === "GET") {
       if (destino.includes("/events/")) return remoto ? json(remoto) : json({ error: { code: 404 } }, 404);
       return json({ id: "primary" });
@@ -334,6 +355,74 @@ describe("o gate do executor lê o ENVELOPE do PostgREST (#2063)", () => {
   });
 });
 
+describe("espaço aberto — a escrita no Google cai uma vez depois do spaces.create", () => {
+  it("controle, opção desligada: o retry do POST sai com conferenceData", async () => {
+    const { db } = banco(false);
+    const g = google(undefined, true);
+    await passada(db, g.transporte);
+    await passada(db, g.transporte);
+    expect(g.escritas.at(-1)!.metodo).toBe("POST");
+    expect(g.escritas.at(-1)!.corpo).toHaveProperty("conferenceData");
+  });
+
+  it("POST cai: o retry reaproveita o espaço e leva o link", async () => {
+    const { db } = banco(true);
+    const g = google(undefined, true);
+    const r1 = await passada(db, g.transporte);
+    expect(linhaMeetingUrl(db)).toBe(LINK);
+    const r2 = await passada(db, g.transporte);
+    expect([r1, r2]).toEqual(["failed", "processed"]);
+    expect(g.espacosCriados).toHaveLength(1);
+    expect(g.escritas.at(-1)!.metodo).toBe("POST");
+    expect(g.escritas.at(-1)!.corpo.location).toBe(LINK);
+  });
+
+  it("PATCH de reunião cai: o retry leva o link", async () => {
+    const { db } = banco(true);
+    const g = google(EVENTO_JA_PUBLICADO, true);
+    publicarSemMeet(db);
+    editar(db, { title: "Consulta reagendada", revision: "2", google_local_revision: "2" });
+    await passada(db, g.transporte);
+    await passada(db, g.transporte);
+    expect(g.espacosCriados).toHaveLength(1);
+    expect(g.evento()?.location).toBe(LINK);
+  });
+
+  it("a segunda falha seguida não cria outro espaço nem repete escrita sem fim", async () => {
+    const { db } = banco(true);
+    const g = google(undefined, 2);
+    expect(await passada(db, g.transporte)).toBe("failed");
+    expect(await passada(db, g.transporte)).toBe("failed");
+    // A terceira passada publica — um espaço só, e a ÚNICA escrita que o
+    // Google registrou é a que sai com o link (as recusas nem entram no eco).
+    expect(await passada(db, g.transporte)).toBe("processed");
+    expect(g.espacosCriados).toHaveLength(1);
+    expect(g.escritas).toHaveLength(1);
+    expect(g.escritas.at(-1)!.corpo.location).toBe(LINK);
+    // E converge: nenhuma escrita depois do link publicado.
+    expect(await passada(db, g.transporte)).toBe("unchanged");
+    expect(g.escritas).toHaveLength(1);
+  });
+
+  it("controle: o Meet confiável do Calendar não vira falso positivo do marcador", async () => {
+    const { db } = banco(true);
+    const g = google(EVENTO_COM_MEET_DO_CALENDAR, true);
+    publicarSemMeet(db);
+    editar(db, { title: "Consulta reagendada", revision: "2", google_local_revision: "2" });
+    // O PATCH do título cai uma vez; o retry NÃO pode pôr o link do Calendar
+    // no `location` nem criar espaço aberto nenhum.
+    expect(await passada(db, g.transporte)).toBe("failed");
+    expect(await passada(db, g.transporte)).toBe("processed");
+    expect(g.espacosCriados).toHaveLength(0);
+    expect(g.escritas.at(-1)!.metodo).toBe("PATCH");
+    expect(g.escritas.at(-1)!.corpo).toEqual({
+      summary: "Consulta reagendada",
+      attendees: [{ email: EMAIL, responseStatus: "needsAction" }],
+    });
+    expect(g.evento()?.location).toBe(DETALHE);
+  });
+});
+
 // ─── atalhos de leitura do banco falso ──────────────────────────────────────
 const linhaDe = (db: unknown) => (db as { linha: Record<string, unknown> }).linha;
 const linhaMeetingUrl = (db: unknown) => linhaDe(db).meeting_url;
@@ -350,6 +439,12 @@ const EVENTO_JA_PUBLICADO: Record<string, unknown> = {
   start: { dateTime: "2026-09-02T17:00:00.000Z", timeZone: "America/Sao_Paulo" },
   end: { dateTime: "2026-09-02T17:30:00.000Z", timeZone: "America/Sao_Paulo" },
   attendees: [],
+};
+
+/** O MESMO evento publicado, com o Meet "confiável" do Calendar já confirmado. */
+const EVENTO_COM_MEET_DO_CALENDAR: Record<string, unknown> = {
+  ...EVENTO_JA_PUBLICADO,
+  conferenceData: conferenciaDoCalendar(),
 };
 
 /** Uma publicação prévia SEM Meet, para o caso do PATCH de reunião. */

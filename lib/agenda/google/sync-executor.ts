@@ -260,11 +260,15 @@ export async function reconcileAppointment(
      * O marcador PERSISTENTE do espaço aberto (#2063, caminho 2 do review de
      * 08/10): o `location` que mandamos ao Google é o link do espaço aberto.
      *
-     * Não há coluna nova nem migration: a prova está no registro da própria
-     * publicação, que já existe — `google_base_projection.local.location` é o
-     * hash do `location` publicado, e ele é igual ao hash do `meeting_url` de
-     * hoje SÓ quando o link publicado é este. `meeting_url` sozinho não
-     * distingue: o link "confiável" do Calendar também mora ali.
+     * Não há coluna nova nem migration: a prova está num registro que já
+     * existe, em um dos DOIS momentos em que o link pode estar. Depois de
+     * publicado, `google_base_projection.local.location` é o hash do
+     * `location` publicado, igual ao hash do `meeting_url` de hoje SÓ quando o
+     * link publicado é este. Enquanto a escrita que carrega o link ainda não
+     * foi reconhecida pelo commit (em voo, ou recusada pelo Google), a mesma
+     * prova está na intenção gravada em `google_pending_write.desired` — ver
+     * `espacoAbertoNaIntencao` abaixo. `meeting_url` sozinho não distingue: o
+     * link "confiável" do Calendar também mora ali.
      *
      * As duas regras da main valem por construção. Compromisso publicado com
      * Meet do Calendar: `base.local.location` é o hash dos `location_details`,
@@ -276,7 +280,35 @@ export async function reconcileAppointment(
     const espacoAbertoPublicado = () =>
       Boolean(a.meeting_url?.trim() && base?.local.location === hash(a.meeting_url));
     let base = a.google_base_projection;
-    let local = localProjection({ ...a, meet_aberto: espacoAbertoPublicado() });
+    /**
+     * O outro momento do MESMO marcador: o link do espaço aberto que AINDA
+     * PRECISA ENTRAR (#2063 — o caso que o review de 09/10 mediu com um 503).
+     *
+     * A janela é esta: o `spaces.create` gravou `ready`, o `prepare` gravou a
+     * intenção da escrita em `google_pending_write.desired` com o link no
+     * `location`, e o Google recusou o corpo (429/5xx/rede). `fn_google_appointment`
+     * NÃO limpa o `google_pending_write` no `error`, então a intenção
+     * sobrevive à recusa: `desired.outbound.location === hash(meeting_url)`
+     * prova que a escrita que levava o link foi preparada e ainda não teve o
+     * resultado reconhecido. É UM marcador só para o POST e para o PATCH —
+     * regra única, não duas — e ele mora num registro que já existe: sem
+     * coluna nova, sem migration, e sem derivar do que o Google recebeu (no
+     * caminho do Meet do Calendar, o `desired` carrega o hash dos detalhes,
+     * nunca o do link, porque é este marcador quem o põe na projeção).
+     *
+     * Capturado ANTES do bloco que reconcilia escritas pendentes: esse bloco
+     * limpa o `google_pending_write` ao reconhecer a escrita, e o marcador
+     * tem de valer para a escrita que esta passada ainda vai refazer.
+     */
+    const espacoAbertoNaIntencao = Boolean(
+      a.meeting_url?.trim() &&
+        a.google_pending_write &&
+        "operation_id" in a.google_pending_write &&
+        a.google_pending_write.desired.outbound.location === hash(a.meeting_url),
+    );
+    /** O marcador de leitura, único: publicado OU ainda em voo com o link. */
+    const espacoAberto = () => espacoAbertoPublicado() || espacoAbertoNaIntencao;
+    let local = localProjection({ ...a, meet_aberto: espacoAberto() });
     // Listagem é sinal de mudança, não versão para um PATCH: GET exato revalida.
     const event = await api.get(a.google_calendar_id, a.google_event_id);
     const linked = event?.extendedProperties?.private;
@@ -467,7 +499,7 @@ export async function reconcileAppointment(
         await commit({ base: next, conflict: null, clear_pending: true, etag: event.etag });
       }
     }
-    local = localProjection({ ...a, meet_aberto: espacoAbertoPublicado() });
+    local = localProjection({ ...a, meet_aberto: espacoAberto() });
     base = a.google_base_projection;
     if (!event) {
       if (wasPublished) {
@@ -635,10 +667,12 @@ export async function reconcileAppointment(
           }
         }
       }
-      if (espacoAbertoAgora) {
-        // O espaço nasceu ANTES do envio, então esta escrita já sai com o
-        // link: o convidado recebe UM convite com a sala, não um convite sem
-        // link e um "alterado" cinco minutos depois (#2063, item 3).
+      if (method !== "DELETE" && (espacoAbertoAgora || espacoAbertoNaIntencao)) {
+        // O espaço nasceu ANTES do envio — ou a escrita que levava o link foi
+        // recusada e a intenção dela sobreviveu (`espacoAbertoNaIntencao`) —,
+        // então esta escrita já sai com o link: o convidado recebe UM convite
+        // com a sala, nunca um convite sem link e um "alterado" cinco minutos
+        // depois (#2063, item 3, e o 503 medido pelo review de 09/10).
         //
         // O corpo é remontado da projeção nova — o mesmo `localDoEvento` de
         // sempre, agora com o marcador ligado —, nunca montado à mão aqui.
