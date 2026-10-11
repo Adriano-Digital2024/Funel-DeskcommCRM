@@ -2,13 +2,50 @@
  * Interpola variáveis de template com dados do contato da conversa (Onda 5).
  * Suporta {{nome}} e {{primeiro_nome}}. Variável sem valor ou desconhecida
  * mantém o literal `{{x}}` — nunca gera texto quebrado que iria pro cliente.
+ *
+ * O nome resolvido cai de `name` para `displayName` (#2744): contato que só
+ * tem `display_name` (o caso de conversa recém-aberta pela API oficial, onde o
+ * CRM ainda não gravou `name`) não podia mandar `{{nome}}` literal pro cliente.
  */
 export interface TemplateContact {
   name?: string | null;
+  /**
+   * Rótulo que o canal/mensageiro devolve (Meta `display_name`), usado como
+   * fallback quando `name` está vazio. Opcional: consumidores antigos do
+   * compositor ainda não passam.
+   */
+  displayName?: string | null;
+}
+
+/** Variáveis que o contato tem que preencher — as outras sempre ficam cruas. */
+const VARIAVEIS_DE_NOME = ["nome", "primeiro_nome"];
+
+function regexDaVariavel(key: string): RegExp {
+  return new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "i");
+}
+
+/**
+ * Nome completo a usar: `name` (CRM) vence; vazio, `displayName` (canal).
+ * As pontas são aparadas antes de virar texto que sai pro cliente.
+ */
+function nomeResolvido(contact: TemplateContact): string {
+  const direto = (contact.name ?? "").trim();
+  return direto !== "" ? direto : (contact.displayName ?? "").trim();
+}
+
+/**
+ * `true` quando o corpo tem `{{nome}}`/`{{primeiro_nome}}` e o contato não tem
+ * NENHUM dos dois nomes: o literal sobrevive à interpolação, e o operador
+ * precisa saber disso antes de mandar (issue #2744). Chave desconhecida não
+ * conta — `{{codigo}}` cru é comportamento esperado, não acidente de nome.
+ */
+export function faltouNomeDeContato(body: string, contact: TemplateContact): boolean {
+  if (nomeResolvido(contact) !== "") return false;
+  return VARIAVEIS_DE_NOME.some((key) => regexDaVariavel(key).test(body));
 }
 
 export function interpolateTemplate(body: string, contact: TemplateContact): string {
-  const full = (contact.name ?? "").trim();
+  const full = nomeResolvido(contact);
   const first = full.split(/\s+/)[0] ?? "";
   return body.replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (literal, rawKey: string) => {
     const key = rawKey.toLowerCase();
