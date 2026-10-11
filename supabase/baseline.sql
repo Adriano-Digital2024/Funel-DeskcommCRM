@@ -46192,9 +46192,9 @@ $function$;
 revoke execute on function public.fn_authorize_ai_form_capture(uuid, uuid, uuid, uuid, uuid, bigint) from public, anon, authenticated;
 grant execute on function public.fn_authorize_ai_form_capture(uuid, uuid, uuid, uuid, uuid, bigint) to service_role;
 
--- ---- Porta de escrita da opção "Meet com acesso aberto" (migration 0579) ----
+-- ---- Porta de escrita da opção "Meet com acesso aberto" (migration 0647) ----
 --
--- Issue #2063 (PR #2089). Espelho da migration 0579: o kit self-host aplica SÓ
+-- Issue #2063 (PR #2089). Espelho da migration 0647: o kit self-host aplica SÓ
 -- o baseline, e sem esta porta a opção da tela não tem como ser ligada.
 -- Corpo idêntico ao da cadeia de propósito — é o que
 -- `tests/unit/apendice-do-baseline-nao-diverge-da-cadeia.test.ts` mede.
