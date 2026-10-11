@@ -1,6 +1,6 @@
 /**
  * A ACTION QUE LIGA "GOOGLE MEET COM ACESSO ABERTO" — o que o Postgres não vê
- * (#2063, migration 0579).
+ * (#2063, migration 0647).
  *
  * O corpo de `fn_definir_google_meet_acesso_aberto` é da própria função; aqui
  * ficam as coisas da action que nenhum banco enxerga, espelhando as duas

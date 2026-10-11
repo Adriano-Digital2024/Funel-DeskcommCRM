@@ -11,7 +11,7 @@ import { useT } from "@/hooks/i18n/useT";
 
 /**
  * "GOOGLE MEET COM ACESSO ABERTO" — o interruptor da issue #2063 (migration
- * 0579), irmã de `AgendaDosColegas`: mesma tela, mesmo piso `manager`, mesma
+ * 0647), irmã de `AgendaDosColegas`: mesma tela, mesmo piso `manager`, mesma
  * leitura pela SESSÃO, mesmo `revalidatePath`, mesmo formato de erro.
  *
  * DESLIGADO (o padrão, e o de toda organização que já instalou): nada muda — o
@@ -64,7 +64,7 @@ export function MeetComAcessoAberto({
   ligadoInicial,
   podeMudar,
 }: {
-  /** `organizations.settings.google_meet_acesso_aberto` (migration 0579). */
+  /** `organizations.settings.google_meet_acesso_aberto` (migration 0647). */
   ligadoInicial: boolean;
   /** Espelha o piso `manager` da RPC. Cortesia, não autorização. */
   podeMudar: boolean;
