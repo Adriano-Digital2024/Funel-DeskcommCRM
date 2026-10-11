@@ -241,10 +241,15 @@ export function modeloOpenAIRaciocina(modelId: string): boolean {
 }
 
 /**
- * Da linha 6 em diante só `gpt-6-luna` e `gpt-6-sol` aceitam desligar o raciocínio:
- * a doc oficial do gpt-6.1-sol e do gpt-6-astra (11/10/2026) recusa `none` e `minimal`,
- * e o @ai-sdk/openai segue a mesma regra. Nesses, o knob vira `low` — o mais rápido
- * que eles aceitam — em vez de um 400 em toda resposta do agente.
+ * Da linha 6 em diante nenhum modelo lista `minimal`, e só `gpt-6-luna` e `gpt-6-sol`
+ * listam `none` (doc oficial de cada id em 11/10/2026: o gpt-6.1-sol diz "`none` and
+ * `minimal` reasoning efforts are not supported", o gpt-6-astra lista low…max, o
+ * gpt-6-luna lista none, low…max; o @ai-sdk/openai declara as mesmas listas em
+ * `supportedReasoningEfforts`). Mandar o knob como está seria 400 em toda resposta.
+ *
+ * `none`/`minimal` é pedido de velocidade, então vira `none` onde ele existe e `low`
+ * onde não existe. `minimal` NÃO vira `low` no Luna: medido acima, lá `low` é mais
+ * lento até que o padrão, e `none` é o único que entrega o que o operador pediu.
  */
 function esforcoAceitoPeloModelo(
   modelId: string,
@@ -253,8 +258,9 @@ function esforcoAceitoPeloModelo(
   if (esforco !== 'none' && esforco !== 'minimal') return esforco;
   const id = modelId.toLowerCase();
   const major = /^gpt-(\d+)/.exec(id)?.[1];
-  const recusaDesligar = major !== undefined && Number(major) >= 6 && id !== 'gpt-6-luna' && id !== 'gpt-6-sol';
-  return recusaDesligar ? 'low' : esforco;
+  if (major === undefined || Number(major) < 6) return esforco;
+  const aceitaNone = id === 'gpt-6-luna' || id === 'gpt-6-sol';
+  return aceitaNone ? 'none' : 'low';
 }
 
 /** Injeta `reasoning.effort` no corpo, preservando o resto de `reasoning` e da chamada. */

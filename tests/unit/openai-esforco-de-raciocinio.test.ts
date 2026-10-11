@@ -57,13 +57,14 @@ describe("knob ligado: a chamada da OpenAI leva reasoning.effort", () => {
 });
 
 describe("knob em none/minimal num modelo que não aceita desligar o raciocínio", () => {
-  // A doc oficial do gpt-6.1-sol e do gpt-6-astra (11/10/2026): "`none` and
-  // `minimal` reasoning efforts are not supported" — mandar o knob como está seria
-  // 400 em toda resposta do agente. `low` é o mais rápido que eles aceitam.
+  // Doc oficial (11/10/2026): o gpt-6.1-sol diz "`none` and `minimal` reasoning
+  // efforts are not supported"; o gpt-6-astra lista só low…max; o gpt-6-luna lista
+  // none, low…max — sem minimal. Mandar o knob como está seria 400 em toda resposta.
   it.each([
     ["gpt-6.1-sol", "none"],
     ["gpt-6-astra", "none"],
     ["gpt-6.1-sol", "minimal"],
+    ["gpt-6-astra", "minimal"],
   ] as const)("%s com %s recebe low", async (modelo, esforco) => {
     const { corpos } = interceptarSaida();
     await disparar(createDefaultRegistry({ openaiReasoningEffort: esforco })["openai"]!("sk-de-teste", modelo));
@@ -76,6 +77,14 @@ describe("knob em none/minimal num modelo que não aceita desligar o raciocínio
       await disparar(createDefaultRegistry({ openaiReasoningEffort: "none" })["openai"]!("sk-de-teste", modelo));
       expect(corpos[0]?.reasoning, modelo).toMatchObject({ effort: "none" });
     }
+  });
+
+  // Quem pediu minimal pediu velocidade: no Luna `low` é mais lento que o padrão
+  // (medição na docstring do knob), então o que respeita o pedido é `none`.
+  it.each(["gpt-6-luna", "gpt-6-sol"])("%s com minimal recebe none", async (modelo) => {
+    const { corpos } = interceptarSaida();
+    await disparar(createDefaultRegistry({ openaiReasoningEffort: "minimal" })["openai"]!("sk-de-teste", modelo));
+    expect(corpos[0]?.reasoning).toMatchObject({ effort: "none" });
   });
 
   it("esforço que o modelo aceita passa intacto", async () => {
