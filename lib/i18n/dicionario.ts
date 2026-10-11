@@ -13585,7 +13585,7 @@ export const DICIONARIO: Traducoes = {
   // salvar essa mudança agora."), reaproveitadas de propósito: mesma situação,
   // mesma frase. Só a do papel é nova, porque aqui o piso é gerente.
   "Agenda dos colegas": { es: "Agenda de los colegas" },
-  // "Google Meet com acesso aberto" (issue #2063, migration 0647): a opção e
+  // "Google Meet com acesso aberto" (issue #2063, migration 0648): a opção e
   // o AVISO DE RISCO, que fica encostada nela na mesma tela. A irmã ao lado é
   // a "Agenda dos colegas" — mesma página, mesmo piso, mesmo formato de frase.
   "Google Meet com acesso aberto": { es: "Google Meet con acceso abierto" },

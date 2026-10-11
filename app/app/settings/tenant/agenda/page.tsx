@@ -143,7 +143,7 @@ export default async function TiposDeAgendamentoPage() {
         // `admin`, e não `manager` como os prazos ao lado: ligar reescreve as
         // etiquetas de todo contato com histórico. A RPC cobra de novo.
         podeLigarClientePelaAgenda={ROLE_RANK[activeOrg.role] >= ROLE_RANK.admin}
-        // A opção da issue #2063 (migration 0647): DESLIGADA por padrão, e
+        // A opção da issue #2063 (migration 0648): DESLIGADA por padrão, e
         // só o `true` explícito liga — a mesma régua de `meetAbertoLigado`.
         meetAbertoLigado={meetAbertoLigado(org?.settings)}
         // `manager` como a irmã ao lado: é regra da AGENDA e não reescreve

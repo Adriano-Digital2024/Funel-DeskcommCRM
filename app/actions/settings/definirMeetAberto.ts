@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * LIGAR E DESLIGAR "GOOGLE MEET JÁ COM ACESSO ABERTO" (#2063, migration 0647).
+ * LIGAR E DESLIGAR "GOOGLE MEET JÁ COM ACESSO ABERTO" (#2063, migration 0648).
  *
  * DESLIGADA (o padrão de toda organização, inclusive de quem já instalou): o
  * Meet da reunião nasce do jeito de sempre, com "pedir para participar". LIGADA

@@ -380,7 +380,7 @@ export function TiposDeAgendamentoClient({
   /** `organizations.settings.colegas_podem_mexer_na_agenda` (migration 0343). */
   colegasPodemMexerNaAgendaLigado: boolean;
   podeMudarAgendaDosColegas: boolean;
-  /** `organizations.settings.google_meet_acesso_aberto` (migration 0647, issue #2063). */
+  /** `organizations.settings.google_meet_acesso_aberto` (migration 0648, issue #2063). */
   meetAbertoLigado: boolean;
   podeMudarMeetAberto: boolean;
 }) {
