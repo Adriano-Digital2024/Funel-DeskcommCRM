@@ -240,6 +240,23 @@ export function modeloOpenAIRaciocina(modelId: string): boolean {
   return /^(o\d|gpt-5|gpt-6)/.test(id) && !id.includes('chat');
 }
 
+/**
+ * Da linha 6 em diante só `gpt-6-luna` e `gpt-6-sol` aceitam desligar o raciocínio:
+ * a doc oficial do gpt-6.1-sol e do gpt-6-astra (11/10/2026) recusa `none` e `minimal`,
+ * e o @ai-sdk/openai segue a mesma regra. Nesses, o knob vira `low` — o mais rápido
+ * que eles aceitam — em vez de um 400 em toda resposta do agente.
+ */
+function esforcoAceitoPeloModelo(
+  modelId: string,
+  esforco: EsforcoDeRaciocinioOpenAI,
+): EsforcoDeRaciocinioOpenAI {
+  if (esforco !== 'none' && esforco !== 'minimal') return esforco;
+  const id = modelId.toLowerCase();
+  const major = /^gpt-(\d+)/.exec(id)?.[1];
+  const recusaDesligar = major !== undefined && Number(major) >= 6 && id !== 'gpt-6-luna' && id !== 'gpt-6-sol';
+  return recusaDesligar ? 'low' : esforco;
+}
+
 /** Injeta `reasoning.effort` no corpo, preservando o resto de `reasoning` e da chamada. */
 function comEsforcoDeRaciocinio(inner: typeof fetch, esforco: EsforcoDeRaciocinioOpenAI): typeof fetch {
   return (input, init) => {
@@ -296,7 +313,7 @@ export function createDefaultRegistry(opts?: {
       const contido = contain(OPENAI_ENDPOINT);
       const fetchFinal =
         esforcoOpenAI && modeloOpenAIRaciocina(modelId)
-          ? comEsforcoDeRaciocinio(contido, esforcoOpenAI)
+          ? comEsforcoDeRaciocinio(contido, esforcoAceitoPeloModelo(modelId, esforcoOpenAI))
           : contido;
       return createOpenAI({ apiKey, fetch: fetchFinal })(modelId);
     },
