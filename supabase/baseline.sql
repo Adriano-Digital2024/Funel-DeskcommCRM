@@ -51132,7 +51132,7 @@ grant execute on function public.comando_da_conversa(public.conversations) to au
 
 notify pgrst, 'reload schema';
 
--- ---- o export do titular é reivindicado pelo worker (migration 0646, issue #2751) ----
+-- ---- o export do titular é reivindicado pelo worker (migration 0652, issue #2751) ----
 -- O worker de exportação LGPD só pulava pedido `completed`, então dois eventos
 -- do MESMO pedido — o webhook da Nuvemshop e a aprovação emitem
 -- `lgpd.data_request_received` cada um — drenados em paralelo (o laço do worker
