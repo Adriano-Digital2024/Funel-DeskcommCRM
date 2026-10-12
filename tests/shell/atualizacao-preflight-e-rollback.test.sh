@@ -515,7 +515,8 @@ echo "── caso 7b — a remediação manda instalar o pacote que ESTA VPS tem
 # repositório do Ubuntu o `apt-get install` devolve "E: Não é possível
 # encontrar o pacote". O nome certo sai do cache LOCAL do apt, então os dois
 # dublês do `apt-cache` decidem qual nome a "VPS" tem, sem rede nenhuma.
-mkdir -p "$WORK/bin-apt-ubuntu" "$WORK/bin-apt-repo-docker" "$WORK/bin-apt-vazio"
+mkdir -p "$WORK/bin-apt-ubuntu" "$WORK/bin-apt-repo-docker" "$WORK/bin-apt-vazio" \
+         "$WORK/bin-apt-ambos"
 cat > "$WORK/bin-apt-ubuntu/apt-cache" <<'STUB'
 #!/usr/bin/env bash
 # Ubuntu: o plugin existe como `docker-buildx` (#2754)
@@ -534,8 +535,15 @@ cat > "$WORK/bin-apt-vazio/apt-cache" <<'STUB'
 [ "${1:-}" = show ] || exit 2
 exit 100
 STUB
+cat > "$WORK/bin-apt-ambos/apt-cache" <<'STUB'
+#!/usr/bin/env bash
+# docker-ce (repo do Docker) + universe do Ubuntu: os DOIS nomes no índice.
+# O `docker-buildx` do Ubuntu depende de docker.io, que conflita com docker-ce.
+[ "${1:-}" = show ] || exit 2
+case "${2:-}" in docker-buildx|docker-buildx-plugin) exit 0 ;; *) exit 100 ;; esac
+STUB
 chmod +x "$WORK/bin-apt-ubuntu/apt-cache" "$WORK/bin-apt-repo-docker/apt-cache" \
-         "$WORK/bin-apt-vazio/apt-cache"
+         "$WORK/bin-apt-vazio/apt-cache" "$WORK/bin-apt-ambos/apt-cache"
 PATH_ANTES7="$PATH"
 
 PATH="$WORK/bin-apt-ubuntu:$PATH"
@@ -559,6 +567,15 @@ if [ "$rc7c" -ne 0 ] && printf '%s' "$motivo7c" | grep -q 'Instale o pacote dock
   ok "com o repo do Docker habilitado, manda instalar docker-buildx-plugin"
 else
   nao "pacote do repo Docker" "rc≠0 com 'Instale o pacote docker-buildx-plugin. '" "rc $rc7c: $motivo7c"
+fi
+
+PATH="$WORK/bin-apt-ambos:$PATH"
+motivo7e="$(preflight_atualizacao 0.9.0)"; rc7e=$?
+PATH="$PATH_ANTES7"
+if [ "$rc7e" -ne 0 ] && printf '%s' "$motivo7e" | grep -q 'Instale o pacote docker-buildx-plugin\. '; then
+  ok "com os dois nomes no índice (docker-ce + universe), manda instalar docker-buildx-plugin"
+else
+  nao "dois nomes no índice" "rc≠0 com 'Instale o pacote docker-buildx-plugin. '" "rc $rc7e: $motivo7e"
 fi
 
 PATH="$WORK/bin-apt-vazio:$PATH"

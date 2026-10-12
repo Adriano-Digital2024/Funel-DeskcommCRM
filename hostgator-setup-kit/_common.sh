@@ -1066,14 +1066,20 @@ veredito_das_imagens_da_release() {  # veredito_das_imagens_da_release <versão>
 # já em disco): é exatamente o que o `apt-get install` desta VPS encontra.
 # Sem apt, ou com os dois nomes fora do cache, devolve os DOIS nomes com a
 # origem de cada um — nunca uma ordem que não se possa executar.
+#
+# A ORDEM importa: `docker-buildx-plugin` é testado PRIMEIRO. Se o repositório
+# do Docker está no índice, o engine quase sempre é `docker-ce` — e, com o
+# universe ligado, o `docker-buildx` do Ubuntu também aparece, mas ele depende
+# de `docker.io`, que conflita com `docker-ce`: o apt recusa a instalação.
+# Medido numa VPS Ubuntu 22.04 com docker-ce 29.8.2 (os dois nomes no índice).
 pacote_do_buildx() {  # → nome do pacote (ou os dois nomes, com a origem)
   if command -v apt-cache >/dev/null 2>&1; then
-    if apt-cache show docker-buildx >/dev/null 2>&1; then
-      printf 'docker-buildx'
-      return 0
-    fi
     if apt-cache show docker-buildx-plugin >/dev/null 2>&1; then
       printf 'docker-buildx-plugin'
+      return 0
+    fi
+    if apt-cache show docker-buildx >/dev/null 2>&1; then
+      printf 'docker-buildx'
       return 0
     fi
   fi
