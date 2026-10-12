@@ -144,6 +144,27 @@ describe("a automação dispara send_email", () => {
     expect(pedido.text).toBe("Oi Ana Souza");
   });
 
+  it("no HTML, o valor vindo do contato entra como texto, e a marcação do operador fica", async () => {
+    enviar.mockResolvedValue({ ok: true, id: "e-mail-4", via: "smtp" });
+    const contato = contexto().contact as Record<string, unknown>;
+    contato.name = '<a href="https://exemplo.invalid">Ana</a> & "Bia"';
+
+    await acao()!.execute(ctx({ contact: contato }), {
+      destinatario: "fixo",
+      email_fixo: "equipe@estudio.com",
+      assunto: "Voucher",
+      corpo: "<p>Oi <strong>{{nome}}</strong></p>",
+      formato: "html",
+    });
+
+    const pedido = enviar.mock.calls[0]![0];
+    expect(pedido.html).toBe(
+      "<p>Oi <strong>&lt;a href=&quot;https://exemplo.invalid&quot;&gt;Ana&lt;/a&gt; &amp; &quot;Bia&quot;</strong></p>",
+    );
+    // A versão em texto leva o valor como a pessoa o escreveu, sem entidades.
+    expect(pedido.text).toContain('& "Bia"');
+  });
+
   it("destinatário dono_do_lead resolve o e-mail do responsável", async () => {
     enviar.mockResolvedValue({ ok: true, id: "e-mail-3", via: "resend" });
 

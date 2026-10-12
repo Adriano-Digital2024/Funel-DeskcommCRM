@@ -128,7 +128,12 @@ function codigoDaFalha(erro: EmailDeliveryError | undefined): string {
 }
 
 function escaparHtml(texto: string): string {
-  return texto.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
@@ -136,8 +141,10 @@ function escaparHtml(texto: string): string {
  *
  * Em `texto`, o `<` digitado pelo operador é dado de quem escreve, não HTML —
  * escapar é o que impede `a < b` de virar tag quebrada no cliente de e-mail.
- * Em `html`, o corpo entra como está (é a promessa do formato) e a versão
- * `text` tira as tags: cliente sem HTML e leitor de tela comem a mesma frase.
+ * Em `html`, a marcação do OPERADOR entra como está (é a promessa do
+ * formato), mas os valores interpolados já chegam escapados: o nome do
+ * contato é texto, não marcação. A versão `text` tira as tags: cliente sem
+ * HTML e leitor de tela comem a mesma frase.
  */
 function corpoParaHtml(corpo: string, formato: string): string {
   if (formato === "html") return corpo;
@@ -174,11 +181,13 @@ async function execute(
 
   const assuntoPronto = renderTemplate(assunto, ctx.context);
   const corpoPronto = renderTemplate(corpo, ctx.context);
+  // No HTML, cada valor de fora (contato, negócio) entra como texto.
+  const corpoHtml = formato === "html" ? renderTemplate(corpo, ctx.context, escaparHtml) : corpoPronto;
 
   const resultado = await sendEmail({
     to: para.endereco,
     subject: assuntoPronto,
-    html: corpoParaHtml(corpoPronto, formato),
+    html: corpoParaHtml(corpoHtml, formato),
     text: corpoParaTexto(corpoPronto, formato),
     // Mesma tag da cobrança, com o valor que diz de ONDE veio: no painel da
     // Resend dá para separar o envio de automação do convite de equipe.
