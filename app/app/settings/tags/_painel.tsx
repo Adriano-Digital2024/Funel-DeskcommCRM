@@ -142,12 +142,17 @@ export function PainelDeTags({ tags, idioma }: { tags: LinhaDeVocabulario[]; idi
         return;
       }
       const dados = corpo?.data ?? {};
+      // TODA ação mexe no verbete de cor, não só `definir_cor`. `renomear` move
+      // o nome na MESMA escrita em que o verbete de cor vai junto (a 0336 faz o
+      // `jsonb_set` só em `{tag}`), `juntar` junta dois verbetes e `excluir`
+      // tira o de baixo — e é o MAPA do provider que pinta a lista de
+      // conversas, o funil, os filtros e os editores do Inbox. Invalidar só na
+      // cor era o que deixava o chip novo CINZO depois de um rename, por até 5
+      // minutos (o `staleTime`), até alguém dar F5: "renomear descolora"
+      // (#2771). O dado já estava certo no banco; quem não acompanhava era a
+      // tela.
+      invalidarCoresDasEtiquetas(queryClient);
       if (acao === "definir_cor") {
-        // Escrever a cor é o ÚNICO caso em que esta tela muda o que outra tela
-        // mostra: o chip da lista de conversas, o funil e os filtros leem o mapa
-        // do provider. Sem esta invalidação o operador trocaria a cor, voltaria
-        // para o Inbox e veria a antiga até o `staleTime` de 5 min vencer.
-        invalidarCoresDasEtiquetas(queryClient);
         toast.success(t("Cor da etiqueta atualizada."));
         setAlvo(null);
         router.refresh();
