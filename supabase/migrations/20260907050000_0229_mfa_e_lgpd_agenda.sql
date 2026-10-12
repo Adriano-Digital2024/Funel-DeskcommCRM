@@ -12,8 +12,8 @@ begin
  if not found then raise exception 'appointment_not_found' using errcode='P0002'; end if;
  if contact is not null then perform public.fn_service_lock(p_org,contact); end if;
  select * into a from public.calendar_appointments where organization_id=p_org and id=p_id for update;
- if a.contact_id is distinct from contact or a.revision is distinct from p_revision then raise exception 'appointment_stale' using errcode='40001'; end if;
- if p_remote and a.status not in ('pending','confirmed') then raise exception 'google_outcome_protected' using errcode='40001';end if;
+ if a.contact_id is distinct from contact or a.revision is distinct from p_revision then raise exception 'appointment_stale' using errcode='PT409'; end if;
+ if p_remote and a.status not in ('pending','confirmed') then raise exception 'google_outcome_protected' using errcode='PT409';end if;
  if a.status='cancelled' then raise exception 'appointment_cancelled' using errcode='22023'; end if;
  if contact is not null then origin:=jsonb_build_object('kind','command','observed',public.fn_service_observe_command(p_org,contact)); end if;
  update public.calendar_appointments set
@@ -70,7 +70,7 @@ begin
  if not found then raise exception 'google_owner_unavailable' using errcode='42501';end if;
  select jsonb_agg(value order by value->>'connection_id') into expected from jsonb_array_elements(p_revisions);
  select jsonb_agg(jsonb_build_object('connection_id',id,'revision',calendar_selection_revision::text) order by id::text) into actual from public.calendar_connections where organization_id=p_org and user_id=actor and provider='google_calendar';
- if actual is distinct from expected then raise exception 'google_selection_stale' using errcode='40001';end if;
+ if actual is distinct from expected then raise exception 'google_selection_stale' using errcode='PT409';end if;
  if not exists(select 1 from public.calendar_connection_calendars k join public.calendar_connections c on c.id=k.connection_id and c.organization_id=k.organization_id
   where k.organization_id=p_org and k.id=p_destination and c.user_id=actor and c.status='healthy' and k.available and k.access_role in ('owner','writer')) then raise exception 'google_destination_unavailable' using errcode='42501';end if;
  if exists(select 1 from unnest(p_sources) selected(id) where not exists(select 1 from public.calendar_connection_calendars k join public.calendar_connections c on c.id=k.connection_id and c.organization_id=k.organization_id
@@ -91,9 +91,9 @@ begin
  select * into a from public.calendar_appointments where organization_id=p_org and id=p_id for update;
  if not found or a.owner_user_id is distinct from auth.uid() then raise exception 'google_resolution_forbidden' using errcode='42501';end if;
  if a.revision::text is distinct from p_revision or a.google_local_revision::text is distinct from p_local_revision
-  or a.google_etag is distinct from p_etag then raise exception 'google_stale' using errcode='40001';end if;
+  or a.google_etag is distinct from p_etag then raise exception 'google_stale' using errcode='PT409';end if;
  if p_choice='retry' then
-  if a.google_conflict is not null then raise exception 'google_conflict_requires_choice' using errcode='40001';end if;
+  if a.google_conflict is not null then raise exception 'google_conflict_requires_choice' using errcode='PT409';end if;
   update public.calendar_appointments set google_next_attempt_at=now() where organization_id=p_org and id=p_id;
  else
   if p_choice not in ('google','local','preserve_remote') or a.google_conflict is null then raise exception 'google_choice_invalid' using errcode='22023';end if;
@@ -142,7 +142,7 @@ begin
  if not found then raise exception 'appointment_not_found' using errcode='P0002'; end if;
  if contact is not null then perform public.fn_service_lock(p_org,contact); end if;
  select * into a from public.calendar_appointments where organization_id=p_org and id=e.entity_id for update;
- if a.contact_id is distinct from contact then raise exception 'appointment_stale' using errcode='40001'; end if;
+ if a.contact_id is distinct from contact then raise exception 'appointment_stale' using errcode='PT409'; end if;
  select * into r from public.appointment_recovery_receipts where organization_id=p_org and appointment_id=a.id and appointment_revision=rev;
  if found then return to_jsonb(r); end if;
  result:=case when contact is null then 'no_contact' when a.revision<>rev or a.status<>'no_show' or a.outcome_recorded_at is null
@@ -166,7 +166,7 @@ begin
    and followup->'enabled'='true'::jsonb and followup->'flow_pointer_ids' ? pointer::text order by agent_id limit 1;
   select n->>'id' into node from public.followup_flow_versions v cross join lateral jsonb_array_elements(v.graph->'nodes') n
    where v.organization_id=p_org and v.id=version and n->>'type'='trigger';
-  if version is null or agent is null or node is null then raise exception 'appointment_flow_changed' using errcode='40001'; end if;
+  if version is null or agent is null or node is null then raise exception 'appointment_flow_changed' using errcode='PT409'; end if;
   begin
    boundary:=public.fn_service_event_origin(p_org,p_event,contact,
     (select channel_session_id from public.conversations where organization_id=p_org and id=a.conversation_id and contact_id=contact));

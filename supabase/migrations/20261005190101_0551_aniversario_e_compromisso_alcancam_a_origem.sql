@@ -83,7 +83,7 @@ begin
  -- Não travar event_log: advisory contato antecede os locks de conversa/FKs.
  perform public.fn_service_lock(p_org,p_contact);
  loop
- if root_event = any(visited) or cardinality(visited)>=32 then raise exception 'service_origin_cycle' using errcode='40001'; end if;
+ if root_event = any(visited) or cardinality(visited)>=32 then raise exception 'service_origin_cycle' using errcode='PT409'; end if;
  visited:=array_append(visited,root_event);
  boundary:=null;
  entity_contact:=null;
@@ -100,7 +100,7 @@ begin
    -- (`fn_service_event_contact`); se ela nao conhecer o par, segue sendo recusa.
    select f.contact_id, f.suportado into entity_contact, v_suportado
      from public.fn_service_event_contact(p_org,e.event_type,e.entity_kind,e.entity_id) f;
-   if not v_suportado then raise exception 'service_event_origin_unsupported' using errcode='40001'; end if;
+   if not v_suportado then raise exception 'service_event_origin_unsupported' using errcode='PT409'; end if;
  end if;
  if entity_contact is distinct from p_contact or not exists(select 1 from public.contacts where organization_id=p_org and id=p_contact and not is_anonymized and is_merged_into is null) then
    raise exception 'service_scope_mismatch' using errcode='23503'; end if;
@@ -108,7 +108,7 @@ begin
  if origin->>'kind'='event' then
    if origin->>'organization_id' is distinct from p_org::text or origin->>'contact_id' is distinct from p_contact::text then raise exception 'service_scope_mismatch' using errcode='23503'; end if;
    root_event:=(origin->>'event_id')::uuid;
-   if root_event is null then raise exception 'service_stale' using errcode='40001'; end if;
+   if root_event is null then raise exception 'service_stale' using errcode='PT409'; end if;
    continue;
  end if;
  exit;
@@ -128,10 +128,10 @@ begin
      select channel_session_id into sid from public.conversations where organization_id=p_org and contact_id=p_contact and id=(observed->>'conversation_id')::uuid;
      if p_session is not null and p_session is distinct from sid then raise exception 'service_channel_mismatch' using errcode='23503'; end if;
    end if;
- else raise exception 'service_stale' using errcode='40001'; end if;
- if sid is null then raise exception 'service_stale' using errcode='40001'; end if;
+ else raise exception 'service_stale' using errcode='PT409'; end if;
+ if sid is null then raise exception 'service_stale' using errcode='PT409'; end if;
  if not exists(select 1 from public.channel_sessions where id=sid and organization_id=p_org and archived_at is null) then raise exception 'service_channel_mismatch' using errcode='23503'; end if;
- if boundary is null and observed is null then raise exception 'service_stale' using errcode='40001'; end if;
+ if boundary is null and observed is null then raise exception 'service_stale' using errcode='PT409'; end if;
  select service_boundary into current_boundary from public.event_service_origins where organization_id=p_org and event_id=root_event and channel_session_id=sid;
  if found then boundary:=current_boundary;
  elsif boundary is null then
@@ -170,7 +170,7 @@ begin
  if current_boundary is null or current_boundary->>'status' in ('closed','resolved','archived')
    or current_boundary->>'demanda_fechada_em' is not null
    or (current_boundary - 'status' - 'demanda_fechada_em' - 'service_started_at') is distinct from boundary then
-   raise exception 'service_stale' using errcode='40001'; end if;
+   raise exception 'service_stale' using errcode='PT409'; end if;
  insert into public.event_service_origins(event_id,channel_session_id,organization_id,service_boundary) values(root_event,sid,p_org,boundary)
  on conflict(event_id,channel_session_id) do nothing;
  return boundary;

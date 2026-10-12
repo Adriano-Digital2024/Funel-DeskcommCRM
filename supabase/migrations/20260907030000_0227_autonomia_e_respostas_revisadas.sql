@@ -83,9 +83,9 @@ begin
  if contact is null then raise exception 'reply_context_unavailable' using errcode='42501';end if;
  perform public.fn_service_lock(p_org,contact);
  select * into a from public.ai_agents where organization_id=p_org and id=p_agent and archived_at is null for share;
- if not found or a.published_version_id is distinct from p_version then raise exception 'reply_agent_stale' using errcode='40001';end if;
+ if not found or a.published_version_id is distinct from p_version then raise exception 'reply_agent_stale' using errcode='PT409';end if;
  select * into c from public.conversations where organization_id=p_org and id=p_conversation and contact_id=contact for no key update;
- if c.active_ai_agent_id is not null and c.active_ai_agent_id<>p_agent then raise exception 'reply_agent_stale' using errcode='40001';end if;
+ if c.active_ai_agent_id is not null and c.active_ai_agent_id<>p_agent then raise exception 'reply_agent_stale' using errcode='PT409';end if;
  b:=public.fn_service_boundary(p_org,p_conversation)-'status'-'demanda_fechada_em'-'service_started_at';
  if not public.fn_meet_boundary_current(b) or exists(select 1 from public.contacts where organization_id=p_org and id=contact and (is_blocked or is_anonymized)) then raise exception 'reply_context_unavailable' using errcode='42501';end if;
  insert into public.ai_reply_drafts(organization_id,conversation_id,contact_id,agent_id,agent_version_id,channel_session_id,service_boundary,context_revision,operation_revision,generation_token)
@@ -125,7 +125,7 @@ begin
  if not found then raise exception 'reply_forbidden' using errcode='42501';end if;
  select * into d from public.ai_reply_drafts where organization_id=p_org and id=p_id for update;
  if d.status in('approved','sending','sent') and p_action='approve' and d.approved_by=auth.uid() and d.approved_body=p_body then return d.send_job_id;end if;
- if d.revision::text is distinct from p_revision or d.status<>'pending' or not public.fn_reply_context_current(p_org,p_id) then raise exception 'reply_stale' using errcode='40001';end if;
+ if d.revision::text is distinct from p_revision or d.status<>'pending' or not public.fn_reply_context_current(p_org,p_id) then raise exception 'reply_stale' using errcode='PT409';end if;
  if p_action='reject' then
  update public.ai_reply_drafts set status='dismissed',feedback=jsonb_build_object('decision','rejected','reason',left(p_feedback,1000)),revision=revision+1,updated_at=now() where id=p_id and organization_id=p_org;return null;
  elsif p_action='approve' then
