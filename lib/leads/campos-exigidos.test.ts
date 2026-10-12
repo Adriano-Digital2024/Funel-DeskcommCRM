@@ -229,6 +229,42 @@ describe("validaCamposExigidos — o que o funil exige", () => {
       }).faltando,
     ).toEqual([]);
   });
+
+  it("campo OCULTO pela condição não é cobrado — esconder não vira bloqueio (#2728)", () => {
+    const settings = {
+      fields: [
+        { key: "tipo_servico", label: "Tipo de serviço", type: "select" },
+        {
+          key: "outro_servico",
+          label: "Outro serviço (qual?)",
+          type: "text",
+          obrigatorio_em: { etapas: [ETAPA_PROPOSTA] },
+          mostrar_quando: { campo: "tipo_servico", contem: "Outro" },
+        },
+      ],
+    };
+    const destino = { stageId: ETAPA_PROPOSTA };
+
+    // Condição fora: o campo não está na ficha, então não pode barrar a
+    // escrita — a promessa da issue é "o campo oculto não é validado como
+    // obrigatório".
+    expect(
+      validaCamposExigidos({
+        lead: { custom_fields: { tipo_servico: "Limpeza" } },
+        settingsDoFunil: settings,
+        destino,
+      }).faltando,
+    ).toEqual([]);
+
+    // Condição DENTRO e campo vazio: cobra, como sempre.
+    expect(
+      validaCamposExigidos({
+        lead: { custom_fields: { tipo_servico: "Outro" } },
+        settingsDoFunil: settings,
+        destino,
+      }).faltando.map((c) => c.chave),
+    ).toEqual(["outro_servico"]);
+  });
 });
 
 describe("recusaDeCamposObrigatorios — a frase da recusa", () => {
