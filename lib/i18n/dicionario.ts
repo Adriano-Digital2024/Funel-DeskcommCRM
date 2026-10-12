@@ -805,7 +805,7 @@ export const DICIONARIO: Traducoes = {
     es: "El contacto no tiene correo registrado, así que no había dirección a la que enviar.",
   },
   "O negócio não tem responsável com e-mail cadastrado, então não havia endereço para onde enviar. Escolha outro destinatário na automação.": {
-    es: "El negocio no tiene responsable con correo registrado, así que no había dirección a la que enviar. Elige otro destinatario en la automación.",
+    es: "El negocio no tiene responsable con correo registrado, así que no había dirección a la que enviar. Elige otro destinatario en la automatización.",
   },
   "O responsável do negócio não faz mais parte da equipe, então o e-mail não foi enviado. Troque o responsável do negócio ou escolha outro destinatário na automação.": {
     es: "El responsable del negocio ya no forma parte del equipo, así que el correo no se envió. Cambia el responsable del negocio o elige otro destinatario en la automatización.",
