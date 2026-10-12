@@ -1,4 +1,4 @@
--- manifest: **A recusa permanente do atendimento e da agenda sai como PT409, não 40001 (#2805, diagnóstico de @paulolimajr77).** Numa VPS self-hosted, uma única chamada a `fn_service_event_origin` recusada com `service_stale` (errcode `40001`) fez o PostgREST 14 repetir a transação sem limite (~1.750 rollbacks/s, pool esgotado, CRM fora do ar); a guarda da 0250 depende do `sb-request-id`, que o self-host não carimba. Esta migration redefine 16 funções (`fn_service_begin`, `fn_service_event_origin`, `fn_demanda_encerrar`, `fn_reply_begin`, `fn_reply_action`, `fn_followup_apply_step`, `fn_appointment_recover`, `fn_appointment_change_core`, `fn_google_calendar_fence`, `fn_google_selection`, `fn_google_catalog`, `fn_google_resolve`, `fn_google_appointment`, `fn_meet_stamp`, `fn_meet_observe`, `fn_meet_delivery_settle`) com o corpo da última definição e só o errcode trocado nos 34 sítios de recusa permanente; `service_contact_changed`, `appointment_notice_busy` e `contact_redaction_busy` continuam `40001` (repetir passa). Mesmo bloco no apêndice do `supabase/baseline.sql`, antes da VARREDURA anon. Chamadores (`lib/atendimento/fronteira.ts`, demandas, agendamentos, rotas do Google) aceitam `PT409` e `40001`. Gate: `tests/unit/recusa-permanente-nao-pede-repeticao.test.ts` reprova recusa permanente com `40001` na última definição do baseline e da cadeia.
+-- manifest: **A recusa permanente do atendimento e da agenda sai como PT409, não 40001 (#2805, diagnóstico de @paulolimajr77).** Numa VPS self-hosted, uma única chamada a `fn_service_event_origin` recusada com `service_stale` (errcode `40001`) fez o PostgREST 14 repetir a transação sem limite (~1.750 rollbacks/s, pool esgotado, CRM fora do ar); a guarda da 0250 depende do `sb-request-id`, que o self-host não carimba. Esta migration redefine 16 funções (`fn_service_begin`, `fn_service_event_origin`, `fn_demanda_encerrar`, `fn_reply_begin`, `fn_reply_action`, `fn_followup_apply_step`, `fn_appointment_recover`, `fn_appointment_change_core`, `fn_google_calendar_fence`, `fn_google_selection`, `fn_google_catalog`, `fn_google_resolve`, `fn_google_appointment`, `fn_meet_stamp`, `fn_meet_observe`, `fn_meet_delivery_settle`) com o corpo da última definição e o errcode trocado nos 34 sítios de recusa permanente; o handler de `fn_appointment_recover` que capturava `serialization_failure` em volta de `fn_service_event_origin` passa a capturar também `PT409` (sem isso, o recibo 'stale' e o aviso na Central sumiam); `service_contact_changed`, `appointment_notice_busy` e `contact_redaction_busy` continuam `40001` (repetir passa). Mesmo bloco no apêndice do `supabase/baseline.sql`, antes da VARREDURA anon. Chamadores (`lib/atendimento/fronteira.ts`, demandas, agendamentos, rotas do Google) aceitam `PT409` e `40001`. Gate: `tests/unit/recusa-permanente-nao-pede-repeticao.test.ts` reprova recusa permanente com `40001` na última definição do baseline e da cadeia.
 
 -- ---- a recusa permanente do atendimento e da agenda não pede repetição (migration 0654, #2805) ----
 -- Diagnóstico de @paulolimajr77 (#2805), numa VPS self-hosted em 2026-10-12:
@@ -43,8 +43,15 @@
 -- `contact_redaction_busy` (trava ocupada por outra escrita). Nenhuma das
 -- funções que só têm essas recusas é redefinida aqui.
 --
--- Corpo de cada função idêntico ao da última definição anterior, com o
--- `errcode` trocado e mais nada. Grants reafirmados como já estavam. Sem
+-- Corpo de cada função igual ao da última definição anterior, com o
+-- `errcode` trocado. E um ajuste a mais, que a troca obriga: o handler que
+-- capturava o código antigo passa a capturar os dois. `fn_appointment_recover`
+-- envolvia `fn_service_event_origin` num `exception when serialization_failure
+-- then result:='stale'`; com a recusa saindo `PT409`, esse handler não a
+-- pegava mais, e o recibo 'stale' e o aviso na Central sumiam (o evento ia
+-- para dead depois de 5 tentativas). Agora é `when serialization_failure or
+-- sqlstate 'PT409'` — o `40001` real (`service_contact_changed`) continua
+-- capturado. Grants reafirmados como já estavam. Sem
 -- tabela, coluna ou dado novo. Idempotente: `create or replace`. Os chamadores
 -- do app leem `PT409` e continuam lendo `40001`, porque o banco e a imagem não
 -- se atualizam no mesmo instante. Vigiado por
@@ -334,7 +341,7 @@ begin
   begin
    boundary:=public.fn_service_event_origin(p_org,p_event,contact,
     (select channel_session_id from public.conversations where organization_id=p_org and id=a.conversation_id and contact_id=contact));
-  exception when serialization_failure then result:='stale'; end;
+  exception when serialization_failure or sqlstate 'PT409' then result:='stale'; end;
   if result is null then
    begin
     insert into public.followup_enrollments(organization_id,pointer_id,version_id,contact_id,conversation_id,agent_id,current_node_id,service_boundary,

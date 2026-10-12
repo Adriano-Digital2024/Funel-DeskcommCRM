@@ -51238,8 +51238,15 @@ comment on column public.lgpd_requests.export_claimed_at is
 -- `contact_redaction_busy` (trava ocupada por outra escrita). Nenhuma das
 -- funções que só têm essas recusas é redefinida aqui.
 --
--- Corpo de cada função idêntico ao da última definição anterior, com o
--- `errcode` trocado e mais nada. Grants reafirmados como já estavam. Sem
+-- Corpo de cada função igual ao da última definição anterior, com o
+-- `errcode` trocado. E um ajuste a mais, que a troca obriga: o handler que
+-- capturava o código antigo passa a capturar os dois. `fn_appointment_recover`
+-- envolvia `fn_service_event_origin` num `exception when serialization_failure
+-- then result:='stale'`; com a recusa saindo `PT409`, esse handler não a
+-- pegava mais, e o recibo 'stale' e o aviso na Central sumiam (o evento ia
+-- para dead depois de 5 tentativas). Agora é `when serialization_failure or
+-- sqlstate 'PT409'` — o `40001` real (`service_contact_changed`) continua
+-- capturado. Grants reafirmados como já estavam. Sem
 -- tabela, coluna ou dado novo. Idempotente: `create or replace`. Os chamadores
 -- do app leem `PT409` e continuam lendo `40001`, porque o banco e a imagem não
 -- se atualizam no mesmo instante. Vigiado por
@@ -51529,7 +51536,7 @@ begin
   begin
    boundary:=public.fn_service_event_origin(p_org,p_event,contact,
     (select channel_session_id from public.conversations where organization_id=p_org and id=a.conversation_id and contact_id=contact));
-  exception when serialization_failure then result:='stale'; end;
+  exception when serialization_failure or sqlstate 'PT409' then result:='stale'; end;
   if result is null then
    begin
     insert into public.followup_enrollments(organization_id,pointer_id,version_id,contact_id,conversation_id,agent_id,current_node_id,service_boundary,
