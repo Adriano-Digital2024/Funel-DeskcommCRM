@@ -36,7 +36,7 @@ type Recusa = { funcao: string; mensagem: string; errcode: string };
 
 /** Recusas da ÚLTIMA definição de cada função (chave: nome + aridade). */
 function recusasVigentes(sql: string): Recusa[] {
-  const ultima = new Map<string, string>();
+  const ultima = new Map<string, { funcao: string; corpo: string }>();
   const cabecalho = /create\s+(?:or\s+replace\s+)?function\s+(?:"?public"?\.)?"?(\w+)"?\s*\(/gi;
   for (const m of sql.matchAll(cabecalho)) {
     let i = m.index + m[0].length;
@@ -56,12 +56,13 @@ function recusasVigentes(sql: string): Recusa[] {
     const inicioCorpo = i + abertura.index + abertura[0].length;
     const fim = sql.indexOf(abertura[0], inicioCorpo);
     if (fim < 0) continue;
-    ultima.set(`${m[1].toLowerCase()}/${aridade}`, sql.slice(inicioCorpo, fim));
+    const funcao = (m[1] ?? "").toLowerCase();
+    ultima.set(`${funcao}/${aridade}`, { funcao, corpo: sql.slice(inicioCorpo, fim) });
   }
   const recusas: Recusa[] = [];
-  for (const [chave, corpo] of ultima) {
-    for (const r of corpo.matchAll(/raise\s+exception\s+'([^']+)'[^;]*?errcode\s*=\s*'(\w+)'/gi)) {
-      recusas.push({ funcao: chave.split("/")[0], mensagem: r[1], errcode: r[2].toUpperCase() });
+  for (const { funcao, corpo } of ultima.values()) {
+    for (const [, mensagem = "", errcode = ""] of corpo.matchAll(/raise\s+exception\s+'([^']+)'[^;]*?errcode\s*=\s*'(\w+)'/gi)) {
+      recusas.push({ funcao, mensagem, errcode: errcode.toUpperCase() });
     }
   }
   return recusas;
