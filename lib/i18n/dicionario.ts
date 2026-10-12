@@ -776,6 +776,52 @@ export const DICIONARIO: Traducoes = {
   "O serviço de envio de e-mail — próprio ou externo — fica em E-mail →": {
     es: "El servicio de envío de correo, propio o externo, está en Correo →",
   },
+
+  // #2726 — a ação "Enviar e-mail": os rótulos do formulário (ActionConfigForm),
+  // o nome da ação (labels.ts) e as sete frases de MOTIVO_DA_PARADA (ActivityTab).
+
+  "Destinatário": { es: "Destinatario" },
+  "Escolha quem recebe": { es: "Elige quién recibe" },
+  "E-mail do contato": { es: "Correo del contacto" },
+  "E-mail do responsável do negócio": { es: "Correo del responsable del negocio" },
+  "Endereço fixo": { es: "Dirección fija" },
+  "Sua viagem para {{destino}}": { es: "Tu viaje para {{destino}}" },
+  "Endereço de e-mail": { es: "Dirección de correo" },
+  "Um endereço fixo recebe todos os envios desta regra.": {
+    es: "Una dirección fija recibe todos los envíos de esta regla.",
+  },
+  "Corpo do e-mail": { es: "Cuerpo del correo" },
+  "Formato do corpo": { es: "Formato del cuerpo" },
+  "Texto simples": { es: "Texto plano" },
+  "HTML simples": { es: "HTML simple" },
+  "As variáveis do WhatsApp valem aqui: {{nome}}, {{primeiro_nome}}, {{lead.title}} e os campos do formulário como {{destino}}.": {
+    es: "Las variables de WhatsApp valen aquí: {{nome}}, {{primeiro_nome}}, {{lead.title}} y los campos del formulario como {{destino}}.",
+  },
+  "O envio usa o e-mail configurado em Admin › E-mail (SMTP ou Resend).": {
+    es: "El envío usa el correo configurado en Admin › Correo (SMTP o Resend).",
+  },
+  "Enviar e-mail": { es: "Enviar correo" },
+  "O contato não tem e-mail cadastrado, então não havia endereço para onde enviar.": {
+    es: "El contacto no tiene correo registrado, así que no había dirección a la que enviar.",
+  },
+  "O negócio não tem responsável com e-mail cadastrado, então não havia endereço para onde enviar. Escolha outro destinatário na automação.": {
+    es: "El negocio no tiene responsable con correo registrado, así que no había dirección a la que enviar. Elige otro destinatario en la automación.",
+  },
+  "Nenhum e-mail está configurado nesta instalação: ligue o servidor em Admin › E-mail ou conecte o serviço externo de envio.": {
+    es: "Ningún correo está configurado en esta instalación: activa el servidor en Admin › Correo o conecta el servicio externo de envío.",
+  },
+  "O servidor de e-mail recusou a mensagem. O detalhe técnico abaixo traz o motivo que o provedor devolveu.": {
+    es: "El servidor de correo rechazó el mensaje. El detalle técnico de abajo trae el motivo que devolvió el proveedor.",
+  },
+  "O provedor de e-mail limitou os envios por causa do volume. Tente de novo mais tarde.": {
+    es: "El proveedor de correo limitó los envíos por el volumen. Inténtalo de nuevo más tarde.",
+  },
+  "O servidor recusou o endereço de quem envia. Confira o remetente em Admin › E-mail.": {
+    es: "El servidor rechazó la dirección de quien envía. Revisa el remitente en Admin › Correo.",
+  },
+  "O domínio do remetente não está verificado na Resend. Verifique o domínio na conta Resend e tente de novo.": {
+    es: "El dominio del remitente no está verificado en Resend. Verifica el dominio en la cuenta Resend e inténtalo de nuevo.",
+  },
   "Extensões da instalação": { es: "Extensiones de la instalación" },
   "O que este servidor conhece, de onde veio e quem está usando. Instalar e configurar continua sendo feito dentro de cada empresa.": {
     es: "Lo que conoce este servidor, de dónde viene y quién lo usa. La instalación y la configuración se siguen haciendo dentro de cada empresa.",
