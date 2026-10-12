@@ -301,6 +301,36 @@ describe("a exportação do titular é reivindicada por pedido (issue #2751)", (
     expect(banco.pedido().attempts).toBe(2);
   });
 
+  it("erro do banco na reivindicação devolve error, e o evento não é consumido", async () => {
+    const banco = criarBancoFalso([pedidoNove()]);
+    // O UPDATE da reivindicação falha sem gravar (statement timeout): a linha
+    // não muda e o PostgREST devolve `error`.
+    const fromOriginal = banco.admin.from.bind(banco.admin);
+    d.adminAtual.valor = {
+      ...banco.admin,
+      from: (tabela: string) => {
+        const t = fromOriginal(tabela);
+        return {
+          ...t,
+          update: (patch: Pedido) =>
+            Object.assign(t.update(patch), {
+              select: async () => ({
+                data: null,
+                error: { code: "57014", message: "canceling statement due to statement timeout" },
+              }),
+            }),
+        };
+      },
+    };
+
+    const resultado = await processLgpdExport(evento("e10"));
+    expect(resultado.status, "o dreno consumiria o evento e o pedido ficaria sem export").toBe("error");
+    expect(resultado.detail).toBe("claim_failed: 57014");
+    expect(d.renderLgpdPdf).not.toHaveBeenCalled();
+    expect(banco.efeitos.uploads).toHaveLength(0);
+    expect(d.sendExportEmail).not.toHaveBeenCalled();
+  });
+
   it("pedido concluído não reexporta", async () => {
     const banco = criarBancoFalso([pedidoNove({ status: "completed", attempts: 1 })]);
     d.adminAtual.valor = banco.admin;

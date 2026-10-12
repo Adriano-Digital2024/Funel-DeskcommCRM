@@ -180,7 +180,7 @@ export async function processLgpdExport(event: EventRow): Promise<HandlerResult>
   // invariante 4 do Sistema Vivo aplicado ao pedido, como o reaper do
   // `event_log` faz com a fila.
   const limiteDaReivindicacao = new Date(Date.now() - EXPORT_CLAIM_STALE_MS).toISOString();
-  const { data: reivindicado } = await admin
+  const { data: reivindicado, error: erroDaReivindicacao } = await admin
     .from("lgpd_requests")
     .update({
       status: "processing",
@@ -192,6 +192,18 @@ export async function processLgpdExport(event: EventRow): Promise<HandlerResult>
     .neq("status", "completed")
     .or(`export_claimed_at.is.null,export_claimed_at.lt.${limiteDaReivindicacao}`)
     .select("id");
+
+  if (erroDaReivindicacao) {
+    // O banco não respondeu à trava: não sabemos se reivindicou. Lido como
+    // "outro está exportando", o dreno consumiria o evento e o pedido ficaria
+    // sem exportação nem nova tentativa. `error` faz o dreno contar a tentativa
+    // e reagendar. Só o código: a mensagem do Postgres pode trazer a linha.
+    return {
+      consumer_key: "lgpd-export-worker.v1",
+      status: "error",
+      detail: `claim_failed: ${erroDaReivindicacao.code}`,
+    };
+  }
 
   if (!reivindicado?.length) {
     // Não reivindicou: outro evento está exportando agora — ou concluiu entre a
