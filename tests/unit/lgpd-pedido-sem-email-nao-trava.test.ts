@@ -6,7 +6,7 @@
  * e o worker não lia o erro — auditava `lgpd.export_generated`, devolvia `ok` ao
  * dispatcher (sem retentativa) e o pedido ficava em `processing` para sempre.
  *
- * A migration 0648 faz o banco aceitar o estado (`tests/invariants/pedido-lgpd-
+ * A migration 0651 faz o banco aceitar o estado (`tests/invariants/pedido-lgpd-
  * sem-email-vira-revisao-pendente.test.ts`). Este arquivo prende a OUTRA metade:
  * se o banco recusar o desfecho de novo, por qualquer razão, o worker falha
  * fechado — não audita o que não aconteceu, devolve `error` e devolve o pedido à

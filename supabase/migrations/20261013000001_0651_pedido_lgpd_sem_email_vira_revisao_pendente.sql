@@ -1,5 +1,5 @@
 -- manifest: **Pedido de dados LGPD em instalação sem e-mail deixa de ficar preso em "Processando".** O CHECK `lgpd_requests_status_check` nasceu (EPIC-08) com `received/processing/completed/failed/expired`, mas o `workers/lgpd-export-worker.ts` grava `pending_review` quando não há transporte de e-mail (`EmailNotConfigured`, self-host sem `RESEND_API_KEY`/SMTP) ou quando o titular não tem endereço, e o `workers/lgpd-redact-worker.ts` grava o mesmo estado em `no_local_footprint` e na anonimização de tenant com falha parcial. O banco recusava com 23514, ninguém lia o erro, o pedido ficava em `processing` para sempre com `result` nulo e o PDF no bucket sem ponteiro — e, enquanto isso, a retenção de mídia da organização ficava suspensa (ela pausa com pedido `received`/`processing`). Medido na prova pela tela do #2669 (vps-teste, 11/10). Aqui: (1) o CHECK passa a aceitar `pending_review`, numa troca drop+add dentro de um bloco `do` (o `update.sh` roda sem `ON_ERROR_STOP`; soltos, um add que falhasse deixaria a tabela sem guarda); nenhum saneamento antes do add, porque o conjunto novo só AMPLIA o velho; (2) os pedidos já presos são levados a `pending_review` com o `result` que o worker teria gravado, e SÓ os que têm prova no `api_audit_log` de que passaram pelo desfecho recusado — o worker auditava DEPOIS do update que falhava, então a linha de audit existe sem o estado. Critérios: `lgpd.export_generated` com `metadata.warning = 'email_not_configured'` ou `metadata.delivery = 'pending_review_no_email'`; `lgpd.redact_no_local_footprint`; `lgpd.tenant_redacted` com `metadata.partial_failure = true` — sempre com o pedido ainda em `processing` e `result` nulo. Pedido preso sem essa linha de audit (o audit é fire-and-forget) fica como está. Mesmo bloco, letra a letra, no apêndice do `supabase/baseline.sql`, antes da VARREDURA anon. Gates: `tests/invariants/pedido-lgpd-sem-email-vira-revisao-pendente.test.ts` (o CHECK aceita `pending_review` e recusa valor fora do vocabulário; o bloco do baseline executado sobre pedidos presos plantados; migration e apêndice com o mesmo bloco) e `tests/unit/lgpd-pedido-sem-email-nao-trava.test.ts` (o worker não audita nem devolve `ok` quando o banco recusa o desfecho).
--- 0648: o pedido de LGPD sem e-mail vira revisão pendente, e não "Processando" para sempre.
+-- 0651: o pedido de LGPD sem e-mail vira revisão pendente, e não "Processando" para sempre.
 --
 -- ─── O defeito ──────────────────────────────────────────────────────────────────────────────
 --
@@ -135,6 +135,6 @@ begin
      and r.result is null;
   get diagnostics v_tenants = row_count;
 
-  raise notice '0648: pedidos presos levados a pending_review — exportacao %, sem pegada %, tenant %',
+  raise notice '0651: pedidos presos levados a pending_review — exportacao %, sem pegada %, tenant %',
     v_exportacoes, v_sem_pegada, v_tenants;
 end $$;

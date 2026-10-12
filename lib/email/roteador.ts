@@ -32,7 +32,7 @@
  *
  * Instalação sem nenhum dos dois continua devolvendo `not_configured`, que é o
  * que joga o fluxo no caminho próprio dele: `pending_review` no worker de LGPD
- * (`workers/lgpd-export-worker.ts`; funciona desde a migration 0648, que pôs o
+ * (`workers/lgpd-export-worker.ts`; funciona desde a migration 0651, que pôs o
  * estado no CHECK do banco) e o link de aceite mostrado na tela do convite.
  * Nenhum chamador precisa saber qual transporte respondeu.
  */

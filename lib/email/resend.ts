@@ -19,7 +19,7 @@
  * próprio dele: `EmailNotConfigured` → `pending_review` no worker de LGPD
  * (`workers/lgpd-export-worker.ts`), com o PDF para o operador entregar à mão,
  * e o convite mostrando o `accept_url` na tela (`app/api/v1/team/invite/route.ts`).
- * Esse caminho da LGPD só passou a funcionar com a migration 0648: até ela o
+ * Esse caminho da LGPD só passou a funcionar com a migration 0651: até ela o
  * CHECK de `lgpd_requests.status` recusava `pending_review`, e o pedido ficava
  * em "Processando" para sempre.
  *

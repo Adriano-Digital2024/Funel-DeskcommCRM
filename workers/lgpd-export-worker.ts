@@ -261,7 +261,7 @@ export async function processLgpdExport(event: EventRow): Promise<HandlerResult>
 
     if (!deliveryEmail) {
       // Mark as pending_review — operator must contact manually.
-      // O erro é lido: até a 0648 o CHECK recusava este estado (23514) e o pedido
+      // O erro é lido: até a 0651 o CHECK recusava este estado (23514) e o pedido
       // ficava em `processing` para sempre, auditado como exportado. Lançar leva ao
       // catch do handler (pedido volta à fila com o código em error_message).
       const { error: semEnderecoErr } = await admin

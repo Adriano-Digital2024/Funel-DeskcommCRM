@@ -1,5 +1,5 @@
 /**
- * PEDIDO DE LGPD SEM E-MAIL VIRA REVISÃO PENDENTE — E NÃO "PROCESSANDO" PARA SEMPRE (0648).
+ * PEDIDO DE LGPD SEM E-MAIL VIRA REVISÃO PENDENTE — E NÃO "PROCESSANDO" PARA SEMPRE (0651).
  *
  * ## O defeito (medido na prova pela tela do #2669, vps-teste, 11/10)
  *
@@ -11,7 +11,7 @@
  * ## Qual caso guarda o quê
  *
  *   1. o CHECK do banco que o self-hoster aplica ACEITA `pending_review` — o
- *      conserto em si. Vermelho com o apêndice da 0648 fora do baseline.
+ *      conserto em si. Vermelho com o apêndice da 0651 fora do baseline.
  *   2. e continua RECUSANDO valor fora do vocabulário — sem ele, "conserto" que
  *      apagasse o CHECK passaria no caso 1.
  *   3. o backfill, EXECUTADO do bloco do baseline numa transação revertida:
@@ -30,8 +30,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { GOV_ORG, lastLine, seedGov, sql } from "./gov-helpers";
 
 const MIGRATION =
-  "supabase/migrations/20261011230002_0648_pedido_lgpd_sem_email_vira_revisao_pendente.sql";
-const MARCADOR_INICIO = "-- ---- pedido de LGPD sem e-mail vira revisão pendente (migration 0648) ----";
+  "supabase/migrations/20261013000001_0651_pedido_lgpd_sem_email_vira_revisao_pendente.sql";
+const MARCADOR_INICIO = "-- ---- pedido de LGPD sem e-mail vira revisão pendente (migration 0651) ----";
 const MARCADOR_PROXIMO = "\n-- ---- ";
 
 const ler = (relativo: string) => readFileSync(join(process.cwd(), relativo), "utf8");
@@ -56,15 +56,15 @@ function blocoDoApendice(): string {
   return blocoDo(fim < 0 ? baseline.slice(inicio) : baseline.slice(inicio, fim), "baseline.sql");
 }
 
-// Namespace pela migration (0648).
-const ORG_ALHEIA = "06480000-0000-4000-8000-0000000000aa";
-const P_SEM_TRANSPORTE = "06480000-1111-4000-8000-000000000001";
-const P_SEM_ENDERECO = "06480000-1111-4000-8000-000000000002";
-const P_SEM_PEGADA = "06480000-1111-4000-8000-000000000003";
-const P_TENANT = "06480000-1111-4000-8000-000000000004";
-const P_SEM_PROVA = "06480000-1111-4000-8000-000000000005";
-const P_PROVA_ALHEIA = "06480000-1111-4000-8000-000000000006";
-const P_TESTE_CHECK = "06480000-1111-4000-8000-000000000007";
+// Namespace pela migration (0651).
+const ORG_ALHEIA = "06510000-0000-4000-8000-0000000000aa";
+const P_SEM_TRANSPORTE = "06510000-1111-4000-8000-000000000001";
+const P_SEM_ENDERECO = "06510000-1111-4000-8000-000000000002";
+const P_SEM_PEGADA = "06510000-1111-4000-8000-000000000003";
+const P_TENANT = "06510000-1111-4000-8000-000000000004";
+const P_SEM_PROVA = "06510000-1111-4000-8000-000000000005";
+const P_PROVA_ALHEIA = "06510000-1111-4000-8000-000000000006";
+const P_TESTE_CHECK = "06510000-1111-4000-8000-000000000007";
 
 function pedido(id: string, tipo: string, escopo = "contact"): string {
   return `insert into public.lgpd_requests
@@ -82,7 +82,7 @@ function depoisDoBackfill(): Record<string, { status: string; error_message: str
   const saida = sql(`
     begin;
     insert into public.organizations (id, slug, legal_name, display_name)
-      values ('${ORG_ALHEIA}', 'org-alheia-0648', 'Org alheia 0648', 'Org alheia 0648');
+      values ('${ORG_ALHEIA}', 'org-alheia-0651', 'Org alheia 0651', 'Org alheia 0651');
     ${pedido(P_SEM_TRANSPORTE, "data_request")}
     ${prova(P_SEM_TRANSPORTE, "lgpd.export_generated", {
       sha256: "abc",
@@ -115,7 +115,7 @@ function depoisDoBackfill(): Record<string, { status: string; error_message: str
     select json_object_agg(id, json_build_object(
              'status', status, 'error_message', error_message, 'result', result,
              'completed_at', completed_at, 'cascaded_to', cascaded_to))
-      from public.lgpd_requests where id::text like '06480000-1111-%';
+      from public.lgpd_requests where id::text like '06510000-1111-%';
     rollback;
   `);
   const linha = saida.split("\n").find((l) => l.trim().startsWith("{"));
@@ -125,10 +125,10 @@ function depoisDoBackfill(): Record<string, { status: string; error_message: str
 
 beforeAll(() => {
   seedGov();
-  sql(`delete from public.lgpd_requests where id::text like '06480000-1111-%';`);
+  sql(`delete from public.lgpd_requests where id::text like '06510000-1111-%';`);
 });
 
-describe("0648 — pending_review no CHECK de lgpd_requests", () => {
+describe("0651 — pending_review no CHECK de lgpd_requests", () => {
   it("1. o CHECK aceita pending_review", () => {
     const saida = sql(`
       begin;

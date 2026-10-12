@@ -51132,14 +51132,14 @@ grant execute on function public.comando_da_conversa(public.conversations) to au
 
 notify pgrst, 'reload schema';
 
--- ---- pedido de LGPD sem e-mail vira revisão pendente (migration 0648) ----
+-- ---- pedido de LGPD sem e-mail vira revisão pendente (migration 0651) ----
 --
 -- O CHECK de `lgpd_requests.status` passa a aceitar `pending_review` (que os
 -- workers de LGPD gravam desde o EPIC-08 e o banco recusava com 23514), e os
 -- pedidos que ficaram presos em `processing` por isso — os que têm a prova no
 -- `api_audit_log` — são levados ao estado que o worker teria gravado. Bloco
 -- IDÊNTICO, letra a letra, ao de
--- `supabase/migrations/20261011230002_0648_pedido_lgpd_sem_email_vira_revisao_pendente.sql`
+-- `supabase/migrations/20261013000001_0651_pedido_lgpd_sem_email_vira_revisao_pendente.sql`
 -- (o racional inteiro mora no cabeçalho dela); preso por
 -- `tests/invariants/pedido-lgpd-sem-email-vira-revisao-pendente.test.ts`. Não
 -- cria função, então fica antes da VARREDURA anon só por ordem de apêndice.
@@ -51248,7 +51248,7 @@ begin
      and r.result is null;
   get diagnostics v_tenants = row_count;
 
-  raise notice '0648: pedidos presos levados a pending_review — exportacao %, sem pegada %, tenant %',
+  raise notice '0651: pedidos presos levados a pending_review — exportacao %, sem pegada %, tenant %',
     v_exportacoes, v_sem_pegada, v_tenants;
 end $$;
 
