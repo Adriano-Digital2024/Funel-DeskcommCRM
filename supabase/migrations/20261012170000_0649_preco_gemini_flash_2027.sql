@@ -1,4 +1,4 @@
--- manifest: atualiza ai_models e ai_pricing do Gemini 3.6/3.7/3.8 Flash para 150/750 centavos por milhão, a tarifa Standard de 01/01/2027; o motor em pricing.ts aplica a promo até 2027-01-01T00:00:00Z.
+-- manifest: atualiza ai_models e ai_pricing do Gemini 3.6/3.7/3.8 Flash para 150/750 centavos por milhão, a tarifa Standard de 01/01/2027; costCents e computeCost aplicam a promo (75/375/7,5 centavos) até 2027-01-01T00:00:00Z.
 --
 -- Página ai.google.dev/gemini-api/docs/pricing, lida em 2026-10-12 (HTTP Date:
 -- Mon, 12 Oct 2026 06:52:04 GMT). Standard, faixa paga, por 1M tokens:
@@ -17,9 +17,13 @@
 -- olhar `effective_from`. Uma segunda linha futura exigiria trocar a PK e
 -- todos os `on conflict (model)` do apêndice. As colunas ficam com a tarifa
 -- de 2027 (150/750), igual nas duas tabelas, notes começando com `catálogo`.
--- Quem grava `llm_calls.cost_cents` é `pricing.ts`, e esse sim escolhe a
--- promo (75/375, cache 0,075) enquanto `em < 2027-01-01T00:00:00Z` (UTC:
--- a página não publica fuso; o repo grava instante em UTC).
+-- A lista mostra 150/750 assim que esta migration aplica. O gasto em
+-- `llm_calls.cost_cents` destes três ids não sai só de `pricing.ts`:
+-- o seam chama `costCents`, e o sentimento e o respondedor legado gravam
+-- via `computeCost` (`lib/ai/cost.ts`), que desvia para o mesmo corte.
+-- Promo enquanto `em < 2027-01-01T00:00:00Z`: 75/375/7,5 centavos por
+-- milhão (entrada, saída, leitura de cache). Nesse instante e depois:
+-- 150/750/15. UTC: a página não publica fuso; o repo grava instante em UTC.
 --
 -- Idempotente. Não mexe no default do Google (segue gemini-3.5-flash).
 -- Não deprecia o 3.7: sumir do seletor é outra decisão.

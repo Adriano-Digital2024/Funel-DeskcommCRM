@@ -53595,8 +53595,11 @@ on conflict (model) do update set
 
 -- ---- preço do Gemini 3.6/3.7/3.8 Flash em 01/01/2027 (migration 0649) ----
 -- Não cria função, então pode ficar depois da VARREDURA anon. O bloco da 0600
--- (acima) semeia a promo; este, reaplicado por último, deixa 150/750. O motor
--- (`pricing.ts`) só usa este número a partir de 2027-01-01T00:00:00Z.
+-- (acima) semeia a promo; este, reaplicado por último, deixa 150/750 na lista.
+-- O gasto em llm_calls desses ids segue costCents: computeCost (sentimento e
+-- respondedor legado) desvia para o mesmo corte. Promo até o instante anterior
+-- a 2027-01-01T00:00:00Z: 75/375/7,5 centavos por milhão (entrada, saída,
+-- leitura de cache). Nesse instante e depois: 150/750/15.
 insert into public.ai_models
   (provider, model_id, display_name, description,
    input_price_per_million_cents, output_price_per_million_cents, supports_tools)

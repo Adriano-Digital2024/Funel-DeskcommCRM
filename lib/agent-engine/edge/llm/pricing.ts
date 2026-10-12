@@ -239,3 +239,35 @@ export function costCents(
     1_000_000;
   return usd * 100;
 }
+
+/**
+ * Custo dos Gemini 3.6/3.7/3.8 Flash pelo mesmo corte de `costCents`, ou null
+ * se o id não é um deles. Prefixo `provider/` e sufixo de data do vendor entram
+ * na chave de `chaveDoModelo` — não há um segundo instante de virada aqui.
+ *
+ * `computeCost` (`lib/ai/cost.ts`) desvia por aqui. A linha de `ai_pricing`
+ * desses três ids já está na tarifa de 2027 (150/750). Sem o desvio, o
+ * sentimento e o respondedor legado gravariam essa Standard em
+ * `llm_calls.cost_cents` durante a promo, e Uso e orçamento somaria o dobro.
+ * Só entrada e saída: este caminho não recebe token de cache. Quem tem cache
+ * chama `costCents` direto (o seam do agente).
+ */
+export function costCentsDoGeminiFlashComVirada(
+  model: string,
+  usage: { inputTokens: number; outputTokens: number },
+  em: Date = new Date(),
+): number | null {
+  const id = chaveDoModelo(model);
+  if (id === undefined || !IDS_GEMINI_FLASH_36_38.has(id)) return null;
+  return costCents(
+    model,
+    {
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    },
+    '1h',
+    em,
+  );
+}
