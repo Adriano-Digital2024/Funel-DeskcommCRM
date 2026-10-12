@@ -33,6 +33,8 @@ beforeEach(() => {
 describe("PATCH …/channel-sessions/[id]/name", () => {
   it("grava o nome somente dentro da organização ativa e audita a troca", async () => {
     const calls: Array<[string, unknown]> = [];
+    // Filtros da GRAVAÇÃO à parte: o `.eq` da leitura não pode responder pelo update.
+    const filtrosDoUpdate: Array<[string, unknown]> = [];
     let mode: "read" | "update" = "read";
     const builder: Record<string, unknown> = {
       select: () => builder,
@@ -43,6 +45,7 @@ describe("PATCH …/channel-sessions/[id]/name", () => {
       },
       eq: (column: string, value: unknown) => {
         calls.push([column, value]);
+        if (mode === "update") filtrosDoUpdate.push([column, value]);
         return builder;
       },
       is: () => builder,
@@ -59,6 +62,7 @@ describe("PATCH …/channel-sessions/[id]/name", () => {
 
     expect(response.status).toBe(200);
     expect(calls).toContainEqual(["organization_id", ORG]);
+    expect(filtrosDoUpdate).toContainEqual(["organization_id", ORG]);
     expect(calls).toContainEqual(["update", { display_name: "WA | 6592" }]);
     expect(audit).toHaveBeenCalledWith(
       expect.objectContaining({
