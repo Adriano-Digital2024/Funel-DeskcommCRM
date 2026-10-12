@@ -53592,3 +53592,40 @@ on conflict (model) do update set
   completion_cents_per_million_tokens = excluded.completion_cents_per_million_tokens,
   notes = excluded.notes,
   superseded_at = null;
+
+-- ---- preço do Gemini 3.6/3.7/3.8 Flash em 01/01/2027 (migration 0647) ----
+-- Não cria função, então pode ficar depois da VARREDURA anon. O bloco da 0600
+-- (acima) semeia a promo; este, reaplicado por último, deixa 150/750. O motor
+-- (`pricing.ts`) só usa este número a partir de 2027-01-01T00:00:00Z.
+insert into public.ai_models
+  (provider, model_id, display_name, description,
+   input_price_per_million_cents, output_price_per_million_cents, supports_tools)
+values
+  ('google', 'gemini-3.6-flash', 'Gemini 3.6 Flash',
+   'Preço de catálogo: tarifa de 01/01/2027 (US$ 1,50/US$ 7,50). O motor cobra a promo até essa data (UTC).',
+   150, 750, true),
+  ('google', 'gemini-3.7-flash', 'Gemini 3.7 Flash',
+   'Preço de catálogo: tarifa de 01/01/2027 (US$ 1,50/US$ 7,50). O motor cobra a promo até essa data (UTC).',
+   150, 750, true),
+  ('google', 'gemini-3.8-flash', 'Gemini 3.8 Flash',
+   'Preço de catálogo: tarifa de 01/01/2027 (US$ 1,50/US$ 7,50). O motor cobra a promo até essa data (UTC).',
+   150, 750, true)
+on conflict (provider, model_id) do update set
+  display_name = excluded.display_name,
+  description = excluded.description,
+  input_price_per_million_cents = excluded.input_price_per_million_cents,
+  output_price_per_million_cents = excluded.output_price_per_million_cents,
+  supports_tools = excluded.supports_tools,
+  deprecated_at = null;
+
+insert into public.ai_pricing
+  (model, prompt_cents_per_million_tokens, completion_cents_per_million_tokens, notes)
+values
+  ('gemini-3.6-flash', 150, 750, 'catálogo 0647 — tarifa de 01/01/2027 UTC; o motor aplica 75/375 até lá'),
+  ('gemini-3.7-flash', 150, 750, 'catálogo 0647 — tarifa de 01/01/2027 UTC; o motor aplica 75/375 até lá'),
+  ('gemini-3.8-flash', 150, 750, 'catálogo 0647 — tarifa de 01/01/2027 UTC; o motor aplica 75/375 até lá')
+on conflict (model) do update set
+  prompt_cents_per_million_tokens = excluded.prompt_cents_per_million_tokens,
+  completion_cents_per_million_tokens = excluded.completion_cents_per_million_tokens,
+  notes = excluded.notes,
+  superseded_at = null;
