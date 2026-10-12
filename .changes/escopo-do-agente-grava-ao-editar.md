@@ -1,9 +1,9 @@
 ---
 impacto: nada_mudou
 secao: corrigido
-titulo: Mudar o material e o funil de um agente que já existe agora grava
+titulo: Editar o funil e o material de um agente pela API agora grava
 ---
 
-Na tela do agente, marcar ou desmarcar um material do acervo, ou trocar quais funis ele enxerga, salvava com mensagem de sucesso e não mudava nada: o agente continuava sem o material e com o funil antigo. Só funcionava ao criar um agente novo. Agora a edição grava, e material arquivado ou de outra empresa continua recusado, como já era na criação.
+Quem editava um agente pela API (integrações e chamadas por token) mandando `pipeline_ids` ou `knowledge_source_ids` no `PATCH /api/v1/ai/agents/:id/versions/:vid` recebia 200 e nada era gravado: a versão seguia com o funil e o material antigos. Agora a edição grava, e antes confere que o funil e o material existem nesta organização: material arquivado ou de outra organização passa a ser recusado também aqui, como já era na criação. A tela do agente não era afetada, porque salva por outro caminho, que já gravava.
 
-Se você tentou ligar um acervo num agente e ele parecia ignorar o material, era isto. Abra o agente, confira se o material está marcado e salve de novo.
+Contribuição de @ygorl.

@@ -118,9 +118,9 @@ describe("PATCH .../versions/:vid — atualização parcial", () => {
     vi.mocked(validarEscopoDaVersao).mockResolvedValue({ ok: true } as never);
   });
 
-  // O funil e o material entravam no schema e chegavam ao `validarEscopoDaVersao`,
-  // mas não ao objeto de escrita: a resposta era 200 e a versão seguia com a
-  // lista antiga. Quem salvava pela tela via a confirmação e nada mudava.
+  // O funil e o material entravam só no schema, não no objeto de escrita: a
+  // resposta era 200 e a versão seguia com a lista antiga. Integrações por
+  // token chegam aqui; a tela usa `saveAgentDraftAction`, que já gravava.
   it("grava o escopo de funil e de material, e os submete à conferência", async () => {
     const { PATCH } = await import("./route");
     const request = new NextRequest("http://localhost/api/v1/ai/agents/x/versions/y", {

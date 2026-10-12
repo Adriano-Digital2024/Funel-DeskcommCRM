@@ -153,10 +153,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
   if (patch.split_messages !== undefined) update.split_messages = patch.split_messages;
   if (patch.split_max_chars !== undefined) update.split_max_chars = patch.split_max_chars;
   if (patch.inbound_debounce_ms !== undefined) update.inbound_debounce_ms = patch.inbound_debounce_ms;
-  // Os dois escopos da versão entravam no schema e no `validarEscopoDaVersao`
-  // acima, mas não neste objeto: o PATCH respondia 200 com a lista antiga e o
-  // agente seguia sem o funil ou sem o material. Quem salva pela tela
-  // (`AgentForm.tsx` → este mesmo PATCH) via a confirmação e nada mudava.
+  // Os dois escopos da versão entravam só no schema, não neste objeto: o PATCH
+  // respondia 200 com a lista antiga e o agente seguia sem o funil ou sem o
+  // material. Integrações por token chegam aqui; a tela usa
+  // `saveAgentDraftAction`, que já gravava.
   // Criar uma versão nova gravava (`lib/ai/agents/create-draft.ts`); editar,
   // não.
   if (patch.pipeline_ids !== undefined) update.pipeline_ids = patch.pipeline_ids;
