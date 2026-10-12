@@ -16,7 +16,7 @@
  * 272px é o padrão do Inbox em 1280px de janela (`LIMITES_LISTA` e
  * `largurasPadrao`, em `lib/inbox/larguras-do-inbox.ts`: a coluna da lista é
  * arrastável entre 240 e 520). Ou seja: na resolução comum, três das seis
- * abas só existiam para quem rolabam a faixa no escuro.
+ * abas só existiam para quem rolava a faixa no escuro.
  *
  * ## Por que este teste é o que é (e o que ele NÃO é)
  *

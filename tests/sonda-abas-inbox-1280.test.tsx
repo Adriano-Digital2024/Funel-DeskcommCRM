@@ -79,9 +79,6 @@ function chromeBinario(): string {
   const candidatos = [
     process.env.CHROME_BIN,
     process.env.CHROMIUM_BIN,
-    "/root/.agent-browser/browsers/chrome-152.0.7977.42/chrome",
-    "/root/.agent-browser/browsers/chrome-152.0.7977.42/chrome-linux64/chrome",
-    "/root/hermes-tools/chromium-1208/chrome-linux64/chrome",
   ].filter((x): x is string => !!x);
   for (const binario of candidatos) if (existsSync(binario)) return binario;
   throw new Error(
