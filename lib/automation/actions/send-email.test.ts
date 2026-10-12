@@ -285,6 +285,18 @@ describe("as recusas que nem tentam", () => {
     expect(enviar).not.toHaveBeenCalled();
   });
 
+  it("contato bloqueado: skipped com contact_blocked, sem tentar enviar", async () => {
+    // As irmãs têm este caso na guarda compartilhada (guarda-do-contato.test.ts);
+    // esta ação tem guarda própria, então o caso mora aqui.
+    const bloqueado = contexto();
+    (bloqueado.contact as { is_blocked: boolean }).is_blocked = true;
+
+    const r = await acao()!.execute(ctx({ contact: bloqueado.contact }), CONFIG);
+
+    expect(r).toEqual({ type: "send_email", status: "skipped", detail: { reason: "contact_blocked" } });
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
   it("opt-out registrado: skipped com consent_declined, sem tentar enviar", async () => {
     const recusado = contexto();
     (recusado.contact as { consent: { marketing: { declined_at: string } } }).consent.marketing.declined_at =
