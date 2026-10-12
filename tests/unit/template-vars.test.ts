@@ -60,6 +60,22 @@ describe("interpolateTemplate", () => {
   });
 });
 
+describe("identificador técnico não vira nome (regra de nomeDoContato)", () => {
+  // `display_name` de resíduo (`Contato 543134@lid`) não é nome de gente: a
+  // regra central (`lib/contacts/rotulo-do-contato.ts`) o recusa, e o template
+  // não pode mandar "Oi Contato" ao cliente.
+  it("display_name técnico → mantém o literal e avisa", () => {
+    const contato = { name: null, displayName: "Contato 543134@lid" };
+    expect(interpolateTemplate("Oi {{primeiro_nome}}!", contato)).toBe("Oi {{primeiro_nome}}!");
+    expect(faltouNomeDeContato("Oi {{primeiro_nome}}!", contato)).toBe(true);
+  });
+  it("name técnico cai no display_name de gente", () => {
+    expect(
+      interpolateTemplate("Oi {{nome}}", { name: "5531988887777@c.us", displayName: "Ana Paula" }),
+    ).toBe("Oi Ana Paula");
+  });
+});
+
 describe("faltouNomeDeContato", () => {
   it("true: tem variável de nome e o contato não tem nenhum nome", () => {
     expect(faltouNomeDeContato("Oi {{nome}}, tudo bem?", { name: null })).toBe(true);

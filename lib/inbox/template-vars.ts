@@ -1,16 +1,18 @@
+import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
+
 /**
  * Interpola variáveis de template com dados do contato da conversa (Onda 5).
  * Suporta {{nome}} e {{primeiro_nome}}. Variável sem valor ou desconhecida
  * mantém o literal `{{x}}` — nunca gera texto quebrado que iria pro cliente.
  *
  * O nome resolvido cai de `name` para `displayName` (#2744): contato que só
- * tem `display_name` (o caso de conversa recém-aberta pela API oficial, onde o
- * CRM ainda não gravou `name`) não podia mandar `{{nome}}` literal pro cliente.
+ * tem `display_name` (o caso do contato criado pela ingestão do canal, que
+ * grava só o nome do perfil) não podia mandar `{{nome}}` literal pro cliente.
  */
 export interface TemplateContact {
   name?: string | null;
   /**
-   * Rótulo que o canal/mensageiro devolve (Meta `display_name`), usado como
+   * Nome do perfil gravado pela ingestão (`contacts.display_name`), usado como
    * fallback quando `name` está vazio. Opcional: consumidores antigos do
    * compositor ainda não passam.
    */
@@ -25,12 +27,12 @@ function regexDaVariavel(key: string): RegExp {
 }
 
 /**
- * Nome completo a usar: `name` (CRM) vence; vazio, `displayName` (canal).
- * As pontas são aparadas antes de virar texto que sai pro cliente.
+ * Nome completo a usar: a regra central de `nomeDoContato` — `name` (CRM) vence,
+ * vazio cai no `displayName` (canal), e identificador técnico (`Contato 5431@lid`)
+ * nunca vira nome. Sem nome de gente, string vazia: o literal sobrevive.
  */
 function nomeResolvido(contact: TemplateContact): string {
-  const direto = (contact.name ?? "").trim();
-  return direto !== "" ? direto : (contact.displayName ?? "").trim();
+  return nomeDoContato({ name: contact.name, display_name: contact.displayName }) ?? "";
 }
 
 /**

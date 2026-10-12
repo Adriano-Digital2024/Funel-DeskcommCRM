@@ -106,7 +106,7 @@ interface Props {
   contactName?: string | null;
   /**
    * Rótulo do canal (`contacts.display_name`), fallback quando `contactName`
-   * é vazio (issue #2744). Contato recém-chegado pela API oficial ainda não tem
+   * é vazio (issue #2744). Contato criado pela ingestão do canal ainda não tem
    * `name` gravado, e o template não podia mandar `{{nome}}` literal pro cliente.
    */
   contactDisplayName?: string | null;
