@@ -346,3 +346,46 @@ describe("camposVisiveis — some da tela e preserva o registro (issue #2728)", 
     });
   });
 });
+
+describe("camposVisiveis olha a LISTA — apagado, laço e quem manda escondido", () => {
+  const texto = (key: string, mostrar_quando?: unknown) => ({
+    key,
+    label: key,
+    type: "text" as const,
+    ...(mostrar_quando ? { mostrar_quando } : {}),
+  });
+
+  it("campo que manda apagado/renomeado: a condição é ilegível e o dependente APARECE", () => {
+    const campos = [texto("outro", { campo: "tipo_apagado", contem: "Outro" })];
+    expect(camposVisiveis(campos, { outro: "valor antigo" }).map((c) => c.key)).toEqual(["outro"]);
+  });
+
+  it("laço A↔B (e A→B→C→A): ninguém do laço fica preso escondido", () => {
+    const dois = [texto("a", { campo: "b", igual: "x" }), texto("b", { campo: "a", igual: "y" })];
+    expect(camposVisiveis(dois, {}).map((c) => c.key)).toEqual(["a", "b"]);
+    const tres = [
+      texto("a", { campo: "c", igual: "1" }),
+      texto("b", { campo: "a", igual: "1" }),
+      texto("c", { campo: "b", igual: "1" }),
+      texto("d", { campo: "a", igual: "1" }),
+    ];
+    // d depende de um membro do laço (que aparece) e a própria condição de d decide.
+    expect(camposVisiveis(tres, {}).map((c) => c.key)).toEqual(["a", "b", "c"]);
+    expect(camposVisiveis(tres, { a: "1" }).map((c) => c.key)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("quem manda escondido esconde o dependente, mesmo com valor antigo que casaria", () => {
+    const campos = [
+      texto("tipo"),
+      texto("detalhe", { campo: "tipo", igual: "Outro" }),
+      texto("sub", { campo: "detalhe", contem: "piscina" }),
+    ];
+    const registro = { tipo: "Limpeza", detalhe: "piscina grande" };
+    expect(camposVisiveis(campos, registro).map((c) => c.key)).toEqual(["tipo"]);
+    expect(camposVisiveis(campos, { ...registro, tipo: "Outro" }).map((c) => c.key)).toEqual([
+      "tipo",
+      "detalhe",
+      "sub",
+    ]);
+  });
+});

@@ -27,7 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/hooks/i18n/useT";
 import { cn } from "@/lib/utils";
-import { campoVisivel, type MostrarQuando } from "@/lib/schemas/mostrar-quando";
+import { camposVisiveis, type MostrarQuando } from "@/lib/schemas/mostrar-quando";
 
 export type CustomFieldType =
   | "text"
@@ -85,7 +85,7 @@ export function CustomFieldsEditor({ fields, value, onChange, disabled, classNam
    * continua dentro do objeto e viaja no save, e o campo volta à tela no
    * instante em que a condição cumpre. Esconder não é limpar.
    */
-  const visiveis = fields.filter((f) => campoVisivel(f.mostrar_quando, value));
+  const visiveis = camposVisiveis(fields, value);
 
   return (
     <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", className)}>

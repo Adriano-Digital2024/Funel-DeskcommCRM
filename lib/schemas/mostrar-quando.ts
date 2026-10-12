@@ -218,13 +218,50 @@ export function campoVisivel(bruta: unknown, valores: Valores): boolean {
 }
 
 /**
- * Os campos que a tela renderiza ESTA vez.
+ * Os campos que a tela renderiza ESTA vez — e a ÚNICA régua de quem aparece,
+ * para a tela (`CustomFieldsEditor`) e para o servidor (`validaCamposExigidos`).
+ *
+ * Ela olha a LISTA, não só a condição, e por isso fecha três casos que a
+ * condição sozinha não vê:
+ *
+ *   - campo que manda APAGADO ou RENOMEADO → a condição aponta para nada, é
+ *     ilegível, e o campo APARECE (o mesmo fail-open de cima). Sem isto o
+ *     dependente sumia para sempre de todo lead, sem aviso;
+ *   - LAÇO (A depende de B que depende de A, ou mais longo) → ninguém do laço
+ *     conseguiria aparecer primeiro; a condição é ilegível e o campo APARECE;
+ *   - campo que manda ESCONDIDO → o dependente também some, mesmo que o valor
+ *     antigo do que manda ainda case: escondido não responde.
  *
  * Devolve uma lista NOVA — `campos` e `valores` ficam intocados, que é
  * exatamente a promessa da issue: esconder não apaga o que estava gravado.
  */
-export function camposVisiveis<T>(campos: readonly T[], valores: Valores): T[] {
-  return campos.filter((campo) =>
-    campoVisivel((campo as unknown as { mostrar_quando?: unknown }).mostrar_quando, valores),
-  );
+export function camposVisiveis<T extends { key: string; mostrar_quando?: unknown }>(
+  campos: readonly T[],
+  valores: Valores,
+): T[] {
+  const porChave = new Map(campos.map((campo) => [campo.key, campo]));
+
+  /** Seguindo quem manda, a cadeia volta a este campo? */
+  const emLaco = (campo: T): boolean => {
+    let atual: T | undefined = campo;
+    for (let passo = 0; passo < campos.length && atual; passo += 1) {
+      const condicao = condicaoDe(atual.mostrar_quando);
+      if (!condicao) return false;
+      if (condicao.campo === campo.key) return true;
+      atual = porChave.get(condicao.campo);
+    }
+    return false;
+  };
+
+  const visivel = (campo: T): boolean => {
+    const condicao = condicaoDe(campo.mostrar_quando);
+    if (!condicao) return true;
+    const quemManda = porChave.get(condicao.campo);
+    if (!quemManda || emLaco(campo)) return true;
+    // Sem laço, a recursão termina: a cadeia acaba num campo sem condição,
+    // num campo que manda inexistente ou num membro de laço (que responde true).
+    return visivel(quemManda) && campoVisivel(campo.mostrar_quando, valores);
+  };
+
+  return campos.filter(visivel);
 }

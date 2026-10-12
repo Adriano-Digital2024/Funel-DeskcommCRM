@@ -174,7 +174,9 @@ export function escreveMostrarQuando(
   };
   const campo = proximo.campo.trim();
   if (campo.length === 0) return undefined;
-  const valor = proximo.valor.trim();
+  // O item "ainda não escolhi" do seletor de valor não é valor: gravá-lo
+  // deixava a condição completa casando com nada, e o campo sumia para sempre.
+  const valor = proximo.valor === SEM_VALOR_DA_CONDICAO ? "" : proximo.valor.trim();
   return {
     campo,
     operador: proximo.operador,

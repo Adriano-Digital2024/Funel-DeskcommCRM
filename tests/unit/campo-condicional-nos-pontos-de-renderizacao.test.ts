@@ -28,11 +28,11 @@ function fonte(arquivo: string): string {
 }
 
 describe("o filtro vive no renderizador único", () => {
-  it("CustomFieldsEditor decide visibilidade com campoVisivel, campo a campo", () => {
+  it("CustomFieldsEditor decide visibilidade com camposVisiveis, sobre a lista inteira", () => {
     const texto = fonte("components/contacts/CustomFieldsEditor.tsx");
-    expect(texto, "CustomFieldsEditor não chama campoVisivel").toMatch(/campoVisivel\(/);
+    expect(texto, "CustomFieldsEditor não chama camposVisiveis").toMatch(/camposVisiveis\(/);
     expect(texto, "o filtro precisa olhar o valor atual, não uma lista fixa").toMatch(
-      /campoVisivel\([^)]*value/,
+      /camposVisiveis\(fields,\s*value\)/,
     );
   });
 
