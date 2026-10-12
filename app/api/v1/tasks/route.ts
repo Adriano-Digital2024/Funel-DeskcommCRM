@@ -129,7 +129,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (parsed.data.assigned_to) {
-    // `assigned_to` não tem chave estrangeira: sem esta conferência, um id de
+    // A chave estrangeira de `assigned_to` é só para `auth.users`: sem esta conferência, um id de
     // outra organização (ou de quem saiu da equipe) gravaria sem erro. A régua
     // e o porquê do admin client estão em `lib/tarefas/responsavel.ts`.
     const equipe = isServiceRoleConfigured() ? createAdminClient() : await createClient();

@@ -1,8 +1,9 @@
 /**
  * QUEM PODE SER RESPONSÁVEL POR UMA TAREFA.
  *
- * `crm_tasks.assigned_to` é um uuid SEM chave estrangeira (migration 0210): o
- * banco aceita qualquer id. Até a tela ganhar o campo "Responsável", só a API
+ * `crm_tasks.assigned_to` tem chave estrangeira só para `auth.users`
+ * (migration 0210): o banco recusa um id inexistente, mas aceita o usuário de
+ * QUALQUER organização da instalação. Até a tela ganhar o campo "Responsável", só a API
  * escrevia ali, e ninguém conferia — um id de outra organização, ou de alguém
  * que saiu da equipe, gravava sem erro e a tarefa ficava sem dono que a visse.
  *
