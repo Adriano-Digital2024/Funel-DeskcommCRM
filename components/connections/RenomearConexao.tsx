@@ -63,7 +63,7 @@ export function RenomearConexao({
           <DialogHeader>
             <DialogTitle>{t("Nome interno da conexão")}</DialogTitle>
             <DialogDescription>
-              {t("Este nome aparece somente no Deskcomm. O perfil público não será alterado.")}
+              {t("Só a sua equipe vê este nome. O nome público no provedor não muda.")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
