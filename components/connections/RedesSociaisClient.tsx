@@ -23,6 +23,7 @@ import { apiClient } from "@/lib/api/client";
 import { canalDesativado } from "@/lib/channels/desativado";
 import { useT } from "@/hooks/i18n/useT";
 import { ChannelAiAccess } from "./ChannelAiAccess";
+import { RenomearConexao } from "./RenomearConexao";
 
 type Account = {
   id: string;
@@ -30,7 +31,12 @@ type Account = {
   username: string;
   active: boolean;
   inbox_supported: boolean;
-  channel: { id: string; status: string; metadata?: Record<string, unknown> | null } | null;
+  channel: {
+    id: string;
+    status: string;
+    display_name: string | null;
+    metadata?: Record<string, unknown> | null;
+  } | null;
 };
 type Orphaned = {
   channel_id: string;
@@ -301,7 +307,13 @@ export function RedesSociaisClient() {
                       {state.networks.find((n) => n.id === account.platform)?.label ??
                         account.platform}
                     </p>
-                    <h3 className="font-semibold">{account.username}</h3>
+                    <h3 className="font-semibold">
+                      {account.channel?.display_name ?? account.username}
+                    </h3>
+                    {account.channel?.display_name &&
+                      account.channel.display_name !== account.username && (
+                        <p className="text-xs text-muted-foreground">{account.username}</p>
+                      )}
                   </div>
                   <Badge variant={account.active ? "secondary" : "outline"}>
                     {account.active ? t("Vinculada") : t("Reconectar")}
@@ -311,6 +323,13 @@ export function RedesSociaisClient() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {account.channel && (
+                    <RenomearConexao
+                      channelId={account.channel.id}
+                      currentName={account.channel.display_name}
+                      onSaved={load}
+                    />
+                  )}
                   <Button
                     variant="outline"
                     disabled={!!busy}
