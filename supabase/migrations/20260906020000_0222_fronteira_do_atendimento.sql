@@ -102,7 +102,7 @@ begin
  perform public.fn_service_lock(p_org,c.contact_id);
  select * into c from public.conversations where id=p_conversation and organization_id=p_org for no key update;
  if c.contact_id is distinct from pre_contact then raise exception 'service_contact_changed' using errcode='40001'; end if;
- if p_expected is not null and c.service_revision<>p_expected then raise exception 'service_stale' using errcode='PT409'; end if;
+ if p_expected is not null and c.service_revision<>p_expected then raise exception 'service_stale' using errcode='40001'; end if;
  if c.status=p_status then return c; end if;
  terminal := p_status in ('closed','resolved','archived');
  update public.conversations set status=p_status,status_changed_at=clock_timestamp(),
@@ -133,7 +133,7 @@ begin
  perform public.fn_service_lock(p_org,d.contact_id);
  select * into d from public.demandas where id=p_demanda and organization_id=p_org for no key update;
  if d.contact_id is distinct from pre_contact then raise exception 'service_contact_changed' using errcode='40001'; end if;
- if d.revision<>p_expected or d.fechada_em is not null then raise exception 'demanda_stale' using errcode='PT409'; end if;
+ if d.revision<>p_expected or d.fechada_em is not null then raise exception 'demanda_stale' using errcode='40001'; end if;
  update public.demandas set revision=revision+1,desfecho=p_desfecho,fechada_em=clock_timestamp(),
   encerrada_por=p_actor,estado=case when p_desfecho in ('resolvida','convertida') then 'resolvida' else 'encerrada' end,
   proximo_passo=null,proximo_passo_em=null,updated_at=clock_timestamp()
@@ -300,9 +300,9 @@ begin
    if p_observed->>'organization_id' is distinct from p_org::text or p_observed->>'contact_id' is distinct from p_contact::text then
      raise exception 'service_scope_mismatch' using errcode='23503'; end if;
    if c.id is null then
-     if p_observed->>'absent' is distinct from 'true' then raise exception 'service_stale' using errcode='PT409'; end if;
+     if p_observed->>'absent' is distinct from 'true' then raise exception 'service_stale' using errcode='40001'; end if;
    elsif public.fn_service_boundary(p_org,c.id) is distinct from p_observed then
-     raise exception 'service_stale' using errcode='PT409';
+     raise exception 'service_stale' using errcode='40001';
    end if;
  end if;
  if c.id is not null then

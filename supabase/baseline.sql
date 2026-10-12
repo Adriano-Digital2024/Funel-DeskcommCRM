@@ -53695,6 +53695,3 @@ on conflict (model) do update set
   completion_cents_per_million_tokens = excluded.completion_cents_per_million_tokens,
   notes = excluded.notes,
   superseded_at = null;
-
-
--- Apêndice: migration 0700 aplica fn_service_event_origin com PT409 (self-host v1.17.0, storm 2026-10-12). Idempotente.

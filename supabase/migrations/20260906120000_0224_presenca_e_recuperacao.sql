@@ -106,7 +106,7 @@ begin
  if not found then raise exception 'appointment_not_found' using errcode='P0002'; end if;
  if contact is not null then perform public.fn_service_lock(p_org,contact); end if;
  select * into a from public.calendar_appointments where organization_id=p_org and id=p_id for update;
- if a.contact_id is distinct from contact or a.revision is distinct from p_revision then raise exception 'appointment_stale' using errcode='PT409'; end if;
+ if a.contact_id is distinct from contact or a.revision is distinct from p_revision then raise exception 'appointment_stale' using errcode='40001'; end if;
  if a.status='cancelled' then raise exception 'appointment_cancelled' using errcode='22023'; end if;
  if contact is not null then origin:=jsonb_build_object('kind','command','observed',public.fn_service_observe_command(p_org,contact)); end if;
  update public.calendar_appointments set
@@ -185,7 +185,7 @@ begin
     on r.organization_id=a.organization_id and r.appointment_id=a.id and r.appointment_revision=a.revision
    where a.organization_id=new.organization_id and a.id=new.appointment_id and a.revision=new.appointment_revision
     and a.status='no_show' and a.contact_id=new.contact_id and r.result='started' and r.invalidated_at is null
-  ) then raise exception 'followup_stale' using errcode='PT409'; end if;
+  ) then raise exception 'followup_stale' using errcode='40001'; end if;
  end if;
  new.revision:=old.revision+1; return new;
 end; $$;
@@ -252,7 +252,7 @@ begin
  if not found then raise exception 'appointment_not_found' using errcode='P0002'; end if;
  if contact is not null then perform public.fn_service_lock(p_org,contact); end if;
  select * into a from public.calendar_appointments where organization_id=p_org and id=e.entity_id for update;
- if a.contact_id is distinct from contact then raise exception 'appointment_stale' using errcode='PT409'; end if;
+ if a.contact_id is distinct from contact then raise exception 'appointment_stale' using errcode='40001'; end if;
  select * into r from public.appointment_recovery_receipts where organization_id=p_org and appointment_id=a.id and appointment_revision=rev;
  if found then return to_jsonb(r); end if;
  result:=case when contact is null then 'no_contact' when a.revision<>rev or a.status<>'no_show' or a.outcome_recorded_at is null
@@ -276,7 +276,7 @@ begin
    and followup->'enabled'='true'::jsonb and followup->'flow_pointer_ids' ? pointer::text order by agent_id limit 1;
   select n->>'id' into node from public.followup_flow_versions v cross join lateral jsonb_array_elements(v.graph->'nodes') n
    where v.organization_id=p_org and v.id=version and n->>'type'='trigger';
-  if version is null or agent is null or node is null then raise exception 'appointment_flow_changed' using errcode='PT409'; end if;
+  if version is null or agent is null or node is null then raise exception 'appointment_flow_changed' using errcode='40001'; end if;
   begin
    boundary:=public.fn_service_event_origin(p_org,p_event,contact,
     (select channel_session_id from public.conversations where organization_id=p_org and id=a.conversation_id and contact_id=contact));
@@ -404,11 +404,11 @@ returns bigint language plpgsql security definer set search_path=public as $$
 declare current public.followup_enrollments; patched public.followup_enrollments; contact uuid;
 begin
  select contact_id into contact from public.followup_enrollments where id=p_id and organization_id=p_org;
- if not found then raise exception 'followup_stale' using errcode='PT409'; end if;
+ if not found then raise exception 'followup_stale' using errcode='40001'; end if;
  perform public.fn_service_lock(p_org,contact);
  select * into current from public.followup_enrollments where id=p_id and organization_id=p_org for update;
- if current.contact_id is distinct from contact or current.revision is distinct from p_revision then raise exception 'followup_stale' using errcode='PT409'; end if;
- if p_patch->>'status' in ('active','waiting_reply') and current.appointment_revision is not null and not public.fn_appointment_enrollment_current(p_org,p_id,current.current_node_id) then raise exception 'followup_stale' using errcode='PT409'; end if;
+ if current.contact_id is distinct from contact or current.revision is distinct from p_revision then raise exception 'followup_stale' using errcode='40001'; end if;
+ if p_patch->>'status' in ('active','waiting_reply') and current.appointment_revision is not null and not public.fn_appointment_enrollment_current(p_org,p_id,current.current_node_id) then raise exception 'followup_stale' using errcode='40001'; end if;
  select * into patched from jsonb_populate_record(current,p_patch);
  update public.followup_enrollments set status=patched.status,current_node_id=patched.current_node_id,next_eval_at=patched.next_eval_at,
   claimed_until=patched.claimed_until,attempts=patched.attempts,last_error=patched.last_error,steps_taken=patched.steps_taken,
@@ -517,7 +517,7 @@ begin
  -- Não travar event_log: advisory contato antecede os locks de conversa/FKs.
  perform public.fn_service_lock(p_org,p_contact);
  loop
- if root_event = any(visited) or cardinality(visited)>=32 then raise exception 'service_origin_cycle' using errcode='PT409'; end if;
+ if root_event = any(visited) or cardinality(visited)>=32 then raise exception 'service_origin_cycle' using errcode='40001'; end if;
  visited:=array_append(visited,root_event);
  boundary:=null;
  entity_contact:=null;
@@ -533,14 +533,14 @@ begin
    select contact_id,jsonb_build_object('organization_id',organization_id,'contact_id',contact_id,
      'conversation_id',conversation_id,'service_revision',service_revision,'demanda_id',demanda_id,'demanda_revision',demanda_revision)
      into entity_contact,boundary from public.messages where organization_id=p_org and id=e.entity_id and direction='inbound';
- else raise exception 'service_event_origin_unsupported' using errcode='PT409'; end if;
+ else raise exception 'service_event_origin_unsupported' using errcode='40001'; end if;
  if entity_contact is distinct from p_contact or not exists(select 1 from public.contacts where organization_id=p_org and id=p_contact and not is_anonymized and is_merged_into is null) then
    raise exception 'service_scope_mismatch' using errcode='23503'; end if;
  origin:=e.payload->'service_origin';
  if origin->>'kind'='event' then
    if origin->>'organization_id' is distinct from p_org::text or origin->>'contact_id' is distinct from p_contact::text then raise exception 'service_scope_mismatch' using errcode='23503'; end if;
    root_event:=(origin->>'event_id')::uuid;
-   if root_event is null then raise exception 'service_stale' using errcode='PT409'; end if;
+   if root_event is null then raise exception 'service_stale' using errcode='40001'; end if;
    continue;
  end if;
  exit;
@@ -560,10 +560,10 @@ begin
      select channel_session_id into sid from public.conversations where organization_id=p_org and contact_id=p_contact and id=(observed->>'conversation_id')::uuid;
      if p_session is not null and p_session is distinct from sid then raise exception 'service_channel_mismatch' using errcode='23503'; end if;
    end if;
- else raise exception 'service_stale' using errcode='PT409'; end if;
- if sid is null then raise exception 'service_stale' using errcode='PT409'; end if;
+ else raise exception 'service_stale' using errcode='40001'; end if;
+ if sid is null then raise exception 'service_stale' using errcode='40001'; end if;
  if not exists(select 1 from public.channel_sessions where id=sid and organization_id=p_org and archived_at is null) then raise exception 'service_channel_mismatch' using errcode='23503'; end if;
- if boundary is null and observed is null then raise exception 'service_stale' using errcode='PT409'; end if;
+ if boundary is null and observed is null then raise exception 'service_stale' using errcode='40001'; end if;
  select service_boundary into current_boundary from public.event_service_origins where organization_id=p_org and event_id=root_event and channel_session_id=sid;
  if found then boundary:=current_boundary;
  elsif boundary is null then
@@ -602,7 +602,7 @@ begin
  if current_boundary is null or current_boundary->>'status' in ('closed','resolved','archived')
    or current_boundary->>'demanda_fechada_em' is not null
    or (current_boundary - 'status' - 'demanda_fechada_em' - 'service_started_at') is distinct from boundary then
-   raise exception 'service_stale' using errcode='PT409'; end if;
+   raise exception 'service_stale' using errcode='40001'; end if;
  insert into public.event_service_origins(event_id,channel_session_id,organization_id,service_boundary) values(root_event,sid,p_org,boundary)
  on conflict(event_id,channel_session_id) do nothing;
  return boundary;
@@ -646,7 +646,7 @@ begin
   perform 1 from public.job_queue where id=(p_event->>'job_id')::uuid and organization_id=p_org for update;
   if not public.fn_followup_claim_current(p_org,(p_event->>'job_id')::uuid,p_event->'job_claim'->>'worker_id',(p_event->'job_claim'->>'acquired_at')::timestamptz)
    or not public.fn_followup_job_current(p_org,(p_event->>'job_id')::uuid,p_id,p_event->>'node_id') then
-   raise exception 'followup_job_stale' using errcode='PT409';
+   raise exception 'followup_job_stale' using errcode='40001';
   end if;
  end if;
  revision:=public.fn_followup_patch(p_org,p_id,p_revision,p_patch);
