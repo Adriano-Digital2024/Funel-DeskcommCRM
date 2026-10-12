@@ -9083,6 +9083,7 @@
   "Enviar e-mail": "Send email",
   "O contato não tem e-mail cadastrado, então não havia endereço para onde enviar.": "The contact has no email on file, so there was no address to send to.",
   "O negócio não tem responsável com e-mail cadastrado, então não havia endereço para onde enviar. Escolha outro destinatário na automação.": "The deal has no owner with an email on file, so there was no address to send to. Pick another recipient in the automation.",
+  "O responsável do negócio não faz mais parte da equipe, então o e-mail não foi enviado. Troque o responsável do negócio ou escolha outro destinatário na automação.": "The deal owner is no longer part of the team, so the email was not sent. Change the deal owner or pick another recipient in the automation.",
   "Nenhum e-mail está configurado nesta instalação: ligue o servidor em Admin › E-mail ou conecte o serviço externo de envio.": "No email is configured on this install: turn on the server in Admin › Email or connect the external sending service.",
   "O servidor de e-mail recusou a mensagem. O detalhe técnico abaixo traz o motivo que o provedor devolveu.": "The mail server rejected the message. The technical detail below carries the reason the provider returned.",
   "O provedor de e-mail limitou os envios por causa do volume. Tente de novo mais tarde.": "The email provider capped sending because of volume. Try again later.",

@@ -5609,6 +5609,7 @@
   "Enviar e-mail": "发送邮件",
   "O contato não tem e-mail cadastrado, então não havia endereço para onde enviar.": "该联系人没有登记邮箱，因此没有可发送的地址。",
   "O negócio não tem responsável com e-mail cadastrado, então não havia endereço para onde enviar. Escolha outro destinatário na automação.": "该商机没有登记带邮箱的负责人，因此没有可发送的地址。请在自动化中选择其他收件人。",
+  "O responsável do negócio não faz mais parte da equipe, então o e-mail não foi enviado. Troque o responsável do negócio ou escolha outro destinatário na automação.": "该商机的负责人已不在团队中，因此邮件未发送。请更换商机负责人，或在自动化中选择其他收件人。",
   "Nenhum e-mail está configurado nesta instalação: ligue o servidor em Admin › E-mail ou conecte o serviço externo de envio.": "本实例未配置任何邮箱：请在 Admin › E-mail 中启用服务器，或接入外部发送服务。",
   "O servidor de e-mail recusou a mensagem. O detalhe técnico abaixo traz o motivo que o provedor devolveu.": "邮件服务器拒收了该消息。下方技术详情给出了服务商返回的原因。",
   "O provedor de e-mail limitou os envios por causa do volume. Tente de novo mais tarde.": "邮件服务商因发送量限制了发送。请稍后再试。",

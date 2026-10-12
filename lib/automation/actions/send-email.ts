@@ -84,6 +84,20 @@ async function resolverDestinatario(
     const lead = ctx.context.lead as { owner_user_id?: string | null } | undefined;
     const ownerId = typeof lead?.owner_user_id === "string" ? lead.owner_user_id : null;
     if (!ownerId) return { ok: false, motivo: "dono_sem_email" };
+    // Só quem ainda é da equipe recebe: revogar um membro não limpa
+    // `crm_leads.owner_user_id`, então o responsável gravado pode ser um
+    // ex-membro. Mesma régua de `assign-owner.ts` e das funções de agenda.
+    const { data: membro, error: erroDaConsulta } = await ctx.admin
+      .from("user_organizations")
+      .select("user_id")
+      .eq("organization_id", ctx.organizationId)
+      .eq("user_id", ownerId)
+      .is("revoked_at", null)
+      .maybeSingle();
+    // Consulta que não voltou não é "não é membro": não envia, e diz que foi a
+    // consulta (frase de `membro_indeterminado`), não a configuração.
+    if (erroDaConsulta) return { ok: false, motivo: "membro_indeterminado" };
+    if (!membro) return { ok: false, motivo: "dono_fora_da_equipe" };
     try {
       const { data } = await ctx.admin.auth.admin.getUserById(ownerId);
       const email = emailValido(data?.user?.email);

@@ -57,10 +57,49 @@ function contexto(): Record<string, unknown> {
   };
 }
 
-function ctx(override: Record<string, unknown> = {}): ActionCtx {
+/** Linha de `user_organizations` como o banco a guarda. */
+interface Vinculo {
+  user_id: string;
+  organization_id: string;
+  revoked_at: string | null;
+}
+
+const EQUIPE_ATIVA: Vinculo[] = [{ user_id: "dono-1", organization_id: "org-1", revoked_at: null }];
+
+/**
+ * Dublê de `user_organizations` que APLICA os filtros pedidos sobre as linhas:
+ * tirar o `.is("revoked_at", null)` da ação devolve o ex-membro, e o teste vê.
+ */
+function tabelaDeVinculos(linhas: Vinculo[], falha: { message: string } | null) {
+  let restantes = [...linhas];
+  const consulta = {
+    select: () => consulta,
+    eq: (coluna: keyof Vinculo, valor: string) => {
+      restantes = restantes.filter((l) => l[coluna] === valor);
+      return consulta;
+    },
+    is: (coluna: keyof Vinculo, valor: null) => {
+      restantes = restantes.filter((l) => l[coluna] === valor);
+      return consulta;
+    },
+    maybeSingle: async () =>
+      falha ? { data: null, error: falha } : { data: restantes[0] ?? null, error: null },
+  };
+  return consulta;
+}
+
+function ctx(
+  override: Record<string, unknown> = {},
+  vinculos: Vinculo[] = EQUIPE_ATIVA,
+  falhaDaConsulta: { message: string } | null = null,
+): ActionCtx {
   return {
     admin: {
       auth: { admin: { getUserById: vi.fn(async () => ({ data: { user: { email: "dono@estudio.com" } } })) } },
+      from: (tabela: string) => {
+        if (tabela !== "user_organizations") throw new Error(`tabela inesperada: ${tabela}`);
+        return tabelaDeVinculos(vinculos, falhaDaConsulta);
+      },
     } as unknown as ActionCtx["admin"],
     organizationId: "org-1",
     ruleId: "rule-1",
@@ -172,6 +211,38 @@ describe("a automação dispara send_email", () => {
 
     expect(enviar.mock.calls[0]![0].to).toBe("dono@estudio.com");
     expect(r.status).toBe("success");
+  });
+});
+
+describe("o responsável do negócio só recebe se ainda for da equipe", () => {
+  it("ex-membro (vínculo revogado): skipped com dono_fora_da_equipe, sem tentar enviar", async () => {
+    const r = await acao()!.execute(
+      ctx({}, [{ user_id: "dono-1", organization_id: "org-1", revoked_at: "2026-09-01T00:00:00Z" }]),
+      { ...CONFIG, destinatario: "dono_do_lead" },
+    );
+
+    expect(r).toEqual({ type: "send_email", status: "skipped", detail: { reason: "dono_fora_da_equipe" } });
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it("membro ativo de OUTRA empresa não conta como da equipe", async () => {
+    const r = await acao()!.execute(
+      ctx({}, [{ user_id: "dono-1", organization_id: "org-2", revoked_at: null }]),
+      { ...CONFIG, destinatario: "dono_do_lead" },
+    );
+
+    expect(r.detail).toEqual({ reason: "dono_fora_da_equipe" });
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it("consulta de equipe que não volta: não envia, e diz que foi a consulta", async () => {
+    const r = await acao()!.execute(ctx({}, EQUIPE_ATIVA, { message: "fetch failed" }), {
+      ...CONFIG,
+      destinatario: "dono_do_lead",
+    });
+
+    expect(r.detail).toEqual({ reason: "membro_indeterminado" });
+    expect(enviar).not.toHaveBeenCalled();
   });
 });
 

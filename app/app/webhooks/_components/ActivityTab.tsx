@@ -189,6 +189,8 @@ const MOTIVO_DA_PARADA: Record<string, string> = {
   no_email: "O contato não tem e-mail cadastrado, então não havia endereço para onde enviar.",
   dono_sem_email:
     "O negócio não tem responsável com e-mail cadastrado, então não havia endereço para onde enviar. Escolha outro destinatário na automação.",
+  dono_fora_da_equipe:
+    "O responsável do negócio não faz mais parte da equipe, então o e-mail não foi enviado. Troque o responsável do negócio ou escolha outro destinatário na automação.",
   email_nao_configurado:
     "Nenhum e-mail está configurado nesta instalação: ligue o servidor em Admin › E-mail ou conecte o serviço externo de envio.",
   email_recusado:
