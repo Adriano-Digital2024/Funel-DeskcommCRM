@@ -52,6 +52,8 @@ describe("a opção 'Google Meet com acesso aberto' na tela de configurações",
     // O estado vem da RESPOSTA (`ligado` do banco), não do clique — é o que
     // a action devolve quando o banco recusou.
     await waitFor(() => expect(interruptor).toHaveAttribute("aria-checked", "true"));
+    // O estado chega antes de a transição acabar: clicar ainda desabilitado é ignorado.
+    await waitFor(() => expect(interruptor).toBeEnabled());
 
     fireEvent.click(interruptor);
     await waitFor(() => expect(definir).toHaveBeenCalledWith(false));
