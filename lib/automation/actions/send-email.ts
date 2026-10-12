@@ -39,6 +39,34 @@ import { registerAction } from "@/lib/automation/actions";
 import type { ActionCtx, ActionResultDetail } from "@/lib/automation/types";
 import { renderTemplate } from "@/lib/automation/template";
 import { sendEmail, type EmailDeliveryError } from "@/lib/email/roteador";
+import { checkRateLimit, peekRateLimit } from "@/lib/ai/dispatcher/rate-limit";
+
+/**
+ * Teto de e-mails de automação por organização, por janela. O remetente é da
+ * INSTALAÇÃO (compartilhado entre empresas), então uma regra desgovernada de
+ * uma empresa queimaria a reputação de envio de todas.
+ *
+ * Duas operações, como em `rate-limit.ts` (#64): `postponeUntil` só CONSULTA
+ * (o motor roda a pré-checagem de todas as ações a cada nova tentativa do
+ * evento, e um adiamento por OUTRA ação não pode gastar o orçamento), e o
+ * `execute` só CONTA quando há tentativa real de envio — recusa (bloqueado,
+ * sem e-mail, opt-out) não consome.
+ *
+ * ponytail: constante, não env — vira knob quando alguém pedir. Entre a
+ * consulta e a contagem o teto pode passar por alguns envios simultâneos do
+ * mesmo evento; trava atômica se isso medir errado.
+ */
+export const LIMITE_DE_EMAILS_POR_JANELA = 200;
+export const JANELA_DO_LIMITE_SEG = 3600;
+
+const baldeDaOrg = (ctx: ActionCtx) => `automacao-email:${ctx.organizationId}`;
+
+async function postponeUntil(ctx: ActionCtx): Promise<string | null> {
+  const enviados = await peekRateLimit(baldeDaOrg(ctx), JANELA_DO_LIMITE_SEG);
+  if (enviados < LIMITE_DE_EMAILS_POR_JANELA) return null;
+  const janelaMs = JANELA_DO_LIMITE_SEG * 1000;
+  return new Date((Math.floor(Date.now() / janelaMs) + 1) * janelaMs).toISOString();
+}
 
 /** Quem recebe: o contato, o responsável do negócio ou um endereço gravado na regra. */
 type Destinatario = "contato" | "dono_do_lead" | "fixo";
@@ -198,6 +226,7 @@ async function execute(
   // No HTML, cada valor de fora (contato, negócio) entra como texto.
   const corpoHtml = formato === "html" ? renderTemplate(corpo, ctx.context, escaparHtml) : corpoPronto;
 
+  await checkRateLimit(baldeDaOrg(ctx), LIMITE_DE_EMAILS_POR_JANELA, JANELA_DO_LIMITE_SEG);
   const resultado = await sendEmail({
     to: para.endereco,
     subject: assuntoPronto,
@@ -227,4 +256,4 @@ async function execute(
   };
 }
 
-registerAction({ type: "send_email", execute });
+registerAction({ type: "send_email", postponeUntil, execute });

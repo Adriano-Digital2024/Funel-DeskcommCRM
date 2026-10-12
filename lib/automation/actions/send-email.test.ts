@@ -18,7 +18,7 @@
  * nem o SMTP — quem escolhe o caminho é `lib/email/roteador.ts`, e já tem os
  * testes dele (`tests/unit/roteador-de-email-nao-afirma-resend-sem-resend`).
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/email/roteador", () => ({ sendEmail: vi.fn() }));
 
@@ -27,7 +27,10 @@ import { getAction } from "@/lib/automation/actions";
 import type { ActionCtx } from "@/lib/automation/types";
 import { actionSchema } from "@/lib/schemas/webhooks";
 
-import "@/lib/automation/actions/send-email";
+import {
+  JANELA_DO_LIMITE_SEG,
+  LIMITE_DE_EMAILS_POR_JANELA,
+} from "@/lib/automation/actions/send-email";
 
 const enviar = vi.mocked(sendEmail);
 
@@ -321,5 +324,58 @@ describe("as recusas que nem tentam", () => {
     expect(r.status).toBe("failed");
     expect(r.error).toBe("missing_config");
     expect(enviar).not.toHaveBeenCalled();
+  });
+});
+
+describe("limite de envio por organização", () => {
+  const FIXO = { destinatario: "fixo", email_fixo: "equipe@estudio.com", assunto: "Oi", corpo: "Texto" };
+  // Relógio parado no meio de uma janela: o laço não pode atravessar a virada.
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-12T10:30:00Z"));
+  });
+  afterAll(() => vi.useRealTimers());
+
+  /** Cada caso numa organização própria: o contador vive na memória do processo. */
+  const daOrg = (org: string, override: Record<string, unknown> = {}): ActionCtx => ({
+    ...ctx(override),
+    organizationId: org,
+  });
+
+  it("os envios de verdade enchem a janela, e aí o evento é adiado até a virada", async () => {
+    enviar.mockResolvedValue({ ok: true, id: "e-mail", via: "smtp" });
+    const c = daOrg("org-limite-cheio");
+
+    for (let i = 0; i < LIMITE_DE_EMAILS_POR_JANELA; i++) {
+      expect(await acao()!.postponeUntil!(c, FIXO)).toBeNull();
+      await acao()!.execute(c, FIXO);
+    }
+
+    const ate = await acao()!.postponeUntil!(c, FIXO);
+    expect(ate).not.toBeNull();
+    const ms = Date.parse(ate!);
+    expect(ms).toBeGreaterThan(Date.now());
+    expect(ms).toBeLessThanOrEqual(Date.now() + JANELA_DO_LIMITE_SEG * 1000);
+    // Outra empresa não herda o teto desta.
+    expect(await acao()!.postponeUntil!(daOrg("org-limite-vizinha"), FIXO)).toBeNull();
+  });
+
+  it("recusa que nem tenta (contato bloqueado) não consome o orçamento", async () => {
+    const bloqueado = contexto();
+    (bloqueado.contact as { is_blocked: boolean }).is_blocked = true;
+    const c = daOrg("org-limite-recusas", { contact: bloqueado.contact });
+
+    for (let i = 0; i <= LIMITE_DE_EMAILS_POR_JANELA; i++) await acao()!.execute(c, CONFIG);
+
+    expect(enviar).not.toHaveBeenCalled();
+    expect(await acao()!.postponeUntil!(c, CONFIG)).toBeNull();
+  });
+
+  it("a pré-checagem repetida (evento adiado por outra ação) não consome o orçamento", async () => {
+    const c = daOrg("org-limite-precheca");
+
+    for (let i = 0; i <= LIMITE_DE_EMAILS_POR_JANELA; i++) {
+      expect(await acao()!.postponeUntil!(c, FIXO)).toBeNull();
+    }
   });
 });
