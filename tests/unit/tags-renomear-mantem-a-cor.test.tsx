@@ -47,7 +47,8 @@ vi.mock("@/hooks/auth/AuthProvider", () => ({
 
 import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
 import { ProvedorDeCoresDasEtiquetas } from "@/components/tags/CoresDasEtiquetas";
-import { PainelDeTags } from "@/app/app/settings/tags/_painel";
+import { CHAVES_COM_NOME_DE_ETIQUETA, PainelDeTags } from "@/app/app/settings/tags/_painel";
+import { SeletorDeCorDaEtiqueta } from "@/components/tags/SeletorDeCorDaEtiqueta";
 
 const OBRA: LinhaDeVocabulario = {
   tag: "obra",
@@ -62,6 +63,7 @@ const OBRA: LinhaDeVocabulario = {
 
 /** O que o banco devolve para o mapa do chip: antes e depois do rename. */
 let renomeado = false;
+let invalidadas: ReturnType<typeof vi.spyOn<QueryClient, "invalidateQueries">>;
 
 const leiturasDeCores = () =>
   gets.mock.calls.filter(([url]) => url === "/api/v1/tags/cores").length;
@@ -100,6 +102,7 @@ afterEach(() => {
 
 function montar() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  invalidadas = vi.spyOn(client, "invalidateQueries");
   render(
     <QueryClientProvider client={client}>
       <ProvedorDeCoresDasEtiquetas>
@@ -148,5 +151,48 @@ describe("renomear uma etiqueta colorida (#2771)", () => {
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
 
     await waitFor(() => expect(leiturasDeCores()).toBeGreaterThan(1), { timeout: 4000 });
+  });
+});
+
+/**
+ * O NOME também mora em cache, não só a cor (prova de tela do #2784): sem estas
+ * invalidações, voltar ao Inbox logo depois do rename mostrava "vip" cinza na
+ * lista e no editor, e o filtro oferecia "vip" sem o nome novo.
+ */
+describe("renomear/juntar/excluir relê todo cache que guarda o nome da etiqueta", () => {
+  const chavesInvalidadas = () =>
+    invalidadas.mock.calls.map(([filtro]) => JSON.stringify(filtro?.queryKey));
+
+  it.each(["Renomear", "Excluir"])("%s invalida conversas, contatos, vocabulários e funil", async (botao) => {
+    montar();
+    fireEvent.click(screen.getByRole("button", { name: botao }));
+    if (botao === "Renomear") {
+      fireEvent.change(screen.getByLabelText("Novo nome"), { target: { value: "obra-nova" } });
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+
+    for (const chave of [
+      ["conversations"],
+      ["conversation"],
+      ["conversation-tag-vocabulary"],
+      ["contacts"],
+      ["contact"],
+      ["contact-tag-vocabulary"],
+      ["board"],
+    ]) {
+      expect(chavesInvalidadas()).toContain(JSON.stringify(chave));
+    }
+    expect(CHAVES_COM_NOME_DE_ETIQUETA).toHaveLength(7);
+  });
+});
+
+describe("gatilho da cor no editor", () => {
+  it("é 28x28 também no desktop: o `lg:h-8` do size=sm não sobrevive", () => {
+    render(<SeletorDeCorDaEtiqueta cor={null} onChange={() => {}} />);
+    const classes = screen.getByRole("button", { name: "Cor da etiqueta" }).className.split(/\s+/);
+    expect(classes).toContain("h-7");
+    expect(classes).toContain("w-7");
+    expect(classes).not.toContain("lg:h-8");
   });
 });

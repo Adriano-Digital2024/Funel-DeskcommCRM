@@ -81,6 +81,25 @@ const TETO_DA_LISTA = 500;
  */
 
 /** Cada recusa do servidor vira uma frase que diz O QUE FAZER. */
+/**
+ * ONDE O NOME DE UMA ETIQUETA ESTÁ EM CACHE no cliente — e por isso precisa ser
+ * relido depois de renomear, juntar ou excluir. Prefixos: invalidar `["contact"]`
+ * alcança `["contact", id]` e as sub-chaves. `invalidarCoresDasEtiquetas` sozinho
+ * repintava o MAPA de cores, mas a lista, o cartão e o editor do Inbox seguiam com
+ * o nome antigo (cinza, já sem verbete de cor) por até 30 s, e o filtro de
+ * etiquetas oferecia o nome morto por até 5 min (`staleTime` dos vocabulários).
+ * Medido na prova de tela do #2784.
+ */
+export const CHAVES_COM_NOME_DE_ETIQUETA = [
+  ["conversations"],
+  ["conversation"],
+  ["conversation-tag-vocabulary"],
+  ["contacts"],
+  ["contact"],
+  ["contact-tag-vocabulary"],
+  ["board"],
+] as const;
+
 const ERRO_EM_PORTUGUES: Record<string, string> = {
   validation_failed: "Confira a etiqueta, o novo nome e a cor.",
   forbidden: "Só um gerente ou administrador da organização pode mudar as etiquetas.",
@@ -157,6 +176,9 @@ export function PainelDeTags({ tags, idioma }: { tags: LinhaDeVocabulario[]; idi
         setAlvo(null);
         router.refresh();
         return;
+      }
+      for (const queryKey of CHAVES_COM_NOME_DE_ETIQUETA) {
+        void queryClient.invalidateQueries({ queryKey: [...queryKey] });
       }
       const alterados =
         Number(dados.contatos ?? 0) + Number(dados.leads ?? 0) + Number(dados.conversas ?? 0);

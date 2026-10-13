@@ -61,7 +61,8 @@ export function SeletorDeCorDaEtiqueta({ cor, onChange, tag, disabled, rotulo }:
           type="button"
           size="sm"
           variant="outline"
-          className="h-7 w-7 shrink-0 p-0"
+          // `size="sm"` traz `lg:h-8`, que um `h-7` sem prefixo não vence no desktop.
+          className="h-7 w-7 shrink-0 p-0 lg:h-7"
           disabled={disabled}
           title={rotuloDoGatilho}
           aria-label={rotuloDoGatilho}
