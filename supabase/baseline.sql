@@ -54414,7 +54414,7 @@ on conflict (model) do update set
   notes = excluded.notes,
   superseded_at = null;
 
--- ---- a tarefa nasce presa à demanda do atendimento (migration 0655, #2818) ----
+-- ---- a tarefa nasce presa à demanda do atendimento (migration 0659, #2818) ----
 -- Hoje a tarefa tem DOIS vínculos opcionais, `lead_id` e `contact_id`, e nenhum
 -- dos dois responde "de qual ATENDIMENTO veio este combinado". No meio da
 -- conversa o atendente combina algo e tem dois caminhos ruins: abrir a aba

@@ -1,6 +1,6 @@
 -- manifest: **A tarefa criada de dentro do atendimento fica presa à demanda, não nasce avulsa (#2818).** `crm_tasks` só tinha `lead_id` e `contact_id`: a tarefa combinada no meio da conversa ("te chamo amanhã") nascia sem vínculo com o ASSUNTO que a originou e não voltava à tela de quem precisa cumprir. Coluna `demanda_id uuid references public.demandas(id) on delete set null` — o MESMO `on delete set null` do `lead_id` (encerrar ou apagar a demanda não pode apagar o que a pessoa escreveu para si mesma) — com índice parcial `(demanda_id) where demanda_id is not null`. Aditiva e reversível, sem reescrita de dado; sem função e sem policy nova (a RLS por `organization_id` já vigente em `crm_tasks` cobre a coluna).
 
--- ---- a tarefa nasce presa à demanda do atendimento (migration 0655, #2818) ----
+-- ---- a tarefa nasce presa à demanda do atendimento (migration 0659, #2818) ----
 -- Hoje a tarefa tem DOIS vínculos opcionais, `lead_id` e `contact_id`, e nenhum
 -- dos dois responde "de qual ATENDIMENTO veio este combinado". No meio da
 -- conversa o atendente combina algo e tem dois caminhos ruins: abrir a aba

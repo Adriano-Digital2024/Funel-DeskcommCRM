@@ -25,7 +25,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const RAIZ = join(__dirname, "..", "..");
-const MIGRATION = "supabase/migrations/20261013215540_0655_tarefa_vinculada_a_demanda.sql";
+const MIGRATION = "supabase/migrations/20261013215540_0659_tarefa_vinculada_a_demanda.sql";
 
 describe("a tarefa vinculada à demanda (#2818) no schema", () => {
   it("controle: a migration existe e não está vazia", () => {
@@ -65,6 +65,6 @@ describe("a tarefa vinculada à demanda (#2818) no schema", () => {
 
   it("a migration está registrada no baseline pela marca do apêndice", () => {
     const baseline = readFileSync(join(RAIZ, "supabase", "baseline.sql"), "utf8");
-    expect(baseline).toContain("(migration 0655, #2818)");
+    expect(baseline).toContain("(migration 0659, #2818)");
   });
 });
