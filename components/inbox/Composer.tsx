@@ -33,7 +33,6 @@ import { useSendMessage } from "@/hooks/inbox/useSendMessage";
 import { useUploadMedia, type DestinoDoUpload } from "@/hooks/inbox/useUploadMedia";
 import { imagemDoClipboard } from "@/lib/inbox/clipboard-image";
 import {
-  MOTIVO_CURINGA_LITERAL,
   interpolateTemplate,
   motivoDoCuringaLiteral,
   type TemplateContact,
@@ -377,7 +376,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     // persistente (mais abaixo) é o que fica, porque o operador precisa editar
     // antes de mandar (#2744).
     if (motivoDoCuringaLiteral(tpl.body, contato)) {
-      toast.warning(t(MOTIVO_CURINGA_LITERAL));
+      toast.warning(
+        t("Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar."),
+      );
     }
     setMenuDismissed(true);
     const ta = taRef.current;
@@ -525,7 +526,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             data-testid="aviso-curinga-literal"
             className="mb-1.5 flex items-start gap-2 rounded-md border-l-2 border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-fg"
           >
-            <p className="min-w-0 flex-1">{t(motivoCuringa)}</p>
+            <p className="min-w-0 flex-1">
+              {t("Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar.")}
+            </p>
           </div>
         )}
         <div className="mb-1.5 flex gap-1">
