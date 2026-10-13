@@ -9056,5 +9056,18 @@
   "Sem intervalo": "No range",
   "Este funil não tem campo de data para montar o calendário.": "This pipeline has no date field to build the calendar.",
   "Nenhum negócio com este campo de data.": "No deals with this date field.",
-  "Nenhum negócio com este campo de data neste período.": "No deals with this date field in this period."
+  "Nenhum negócio com este campo de data neste período.": "No deals with this date field in this period.",
+  "Nova conversa": "New conversation",
+  "Diga para quem e o que dizer. O canal de saída é você quem escolhe quando há mais de um número.": "Say who it is for and what to say. You choose the outgoing channel when there is more than one number.",
+  "Para quem": "For whom",
+  "Telefone ou nome do contato": "Phone or contact name",
+  "Contato existente": "Existing contact",
+  "Como o contato aparece no CRM": "How the contact appears in the CRM",
+  "Primeira mensagem": "First message",
+  "O que dizer ao contato (opcional)": "What to tell the contact (optional)",
+  "Usar modelo de mensagem": "Use a message template",
+  "A conversa abre atribuída a você: a IA não assume este atendimento.": "The conversation opens assigned to you: the AI does not take over this service.",
+  "Criar conversa": "Create conversation",
+  "Nenhum contato encontrado": "No contact found",
+  "A conversa abriu, mas a primeira mensagem não pôde ser enviada.": "The conversation opened, but the first message could not be sent."
 }
