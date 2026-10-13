@@ -26,6 +26,7 @@ import { activityLabel, actorLabel, actorShape } from "@/lib/leads/activity-voca
 import { soChavesAlteradas } from "@/lib/leads/custom-fields-so-diff";
 import { ConversationTagsEditor } from "./ConversationTagsEditor";
 import { ContactTagsEditor } from "./ContactTagsEditor";
+import { TarefasDaDemanda } from "./TarefasDaDemanda";
 import { useDefaultPipeline } from "@/hooks/pipelines/useDefaultPipeline";
 import { NewLeadDialog } from "@/components/kanban/NewLeadDialog";
 import { CustomFieldsEditor, type CustomFieldDef } from "@/components/contacts/CustomFieldsEditor";
@@ -662,6 +663,14 @@ export function CRMSidePanel({ conversation }: Props) {
     [erro, summaryContactId, contactId, leads, orders, activities, demandas],
   );
 
+  /**
+   * O negócio ATIVO do contato, se houver: a tarefa criada no inbox também o
+   * aponta (#2818). `leadAtivoId` é o que o editor de leads marcou (o contato
+   * pode ter vários negócios); sem escolha, o primeiro da lista, que é o que
+   * `InboxLeadEditor` mostra como ativo.
+   */
+  const negocioAtivoId = leadAtivoId ?? leads?.[0]?.id ?? null;
+
   if (!conversation) {
     return (
       <aside className="flex h-full items-center justify-center border-l border-border p-4 text-center text-xs text-muted-foreground">
@@ -817,6 +826,20 @@ export function CRMSidePanel({ conversation }: Props) {
           />
         )}
       </section>
+
+      <Separator />
+
+      {/* A TAREFA DO ATENDIMENTO (#2818): o combinado que o atendente faz no
+          meio da conversa deixa de morrer em nota de texto e ganha prazo,
+          responsável e situação — sem sair da tela. Fica logo DEPOIS da
+          demanda porque é dela que a tarefa pende: a seção só se desenha com
+          demanda vigente no canal. */}
+      <TarefasDaDemanda
+        demandaId={conversation.current_demanda_id ?? null}
+        contactId={contactId}
+        leadId={negocioAtivoId}
+        podeEditar={!readonly}
+      />
 
       <Separator />
 
