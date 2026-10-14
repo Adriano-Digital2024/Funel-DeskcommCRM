@@ -53,10 +53,11 @@ depois disso a tela recusa, para não deixar essas assinaturas sem leitura.
 3. Aparecem o selo **MODO DE TESTE** e "Os avisos de pagamento chegam em …". O sistema
    cadastra o aviso de pagamento (o webhook) na Stripe sozinho.
 
-Uma chave restrita (`rk_`) precisa de acesso de escrita a **produtos**, clientes, assinaturas,
-faturas, checkout, portal e avisos (webhooks). O "Testar e conectar" só lê clientes: uma chave
-sem **produtos** conecta, e o erro só aparece quando o primeiro cliente clica em **Assinar**, porque
-é no checkout que o sistema cria o produto do plano na Stripe.
+Uma chave restrita (`rk_`) precisa de escrita em **produtos**, clientes, assinaturas, checkout,
+portal e avisos (webhooks), e de leitura de faturas. O "Testar e conectar" lê clientes e cadastra
+o portal e o aviso de pagamento, mas não toca em produtos: uma chave sem **produtos** conecta, e o
+erro só aparece quando o primeiro cliente clica em **Assinar**, porque é no checkout que o sistema
+cria o produto do plano na Stripe.
 
 ### Asaas
 

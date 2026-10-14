@@ -16,7 +16,9 @@ vigiada por teste.
 1. Entre como administrador da empresa: **Configurações › Sua empresa › Organização**.
 2. Confira a **Razão social**: ela vai impressa no documento jurídico. Se ficou vazia na criação
    da empresa, nasceu igual ao nome fantasia.
-3. Preencha o **DPO email** (o e-mail do encarregado pelos dados).
+3. Preencha o **DPO email** (o e-mail do encarregado pelos dados). Sem ele, o documento sai com
+   o e-mail de DPO da instalação, que é o seu: o titular escreveria ao operador, e não à
+   controladora.
 4. Saiba onde ficam os dados: com o banco na própria VPS ([`coolify.md`](coolify.md)), eles
    ficam onde a VPS fica. VPS no Brasil deixa o CRM e o banco no Brasil.
 5. Se a IA estiver ligada, avise o cliente **por escrito** que as conversas vão para um
@@ -47,9 +49,11 @@ lista genérica copiada de outro contrato não descreve o seu tratamento.
 
 ## O argumento da ANPD, do jeito certo
 
-A Resolução CD/ANPD nº 19/2024 exige cláusulas-padrão para **transferência internacional** de
-dados. Com o CRM e o banco numa VPS no Brasil, o CRM em si não transfere. **A IA transfere**:
-os provedores ficam fora do Brasil.
+A transferência internacional de dados é regulada pela Resolução CD/ANPD nº 19/2024. As
+cláusulas-padrão contratuais são um dos mecanismos que ela prevê, e qual usar é decisão do seu
+advogado. Com o CRM e o banco numa VPS no Brasil, o CRM e o banco ficam no Brasil. **A IA
+transfere**: os provedores ficam fora do Brasil. Confira também os outros suboperadores da
+cláusula 8 (e-mail, pagamento): se algum for de fora, ele também transfere.
 
-Nunca diga "conforme com a LGPD" nem "servidor no Brasil = LGPD". Diga: "sem transferência
-internacional no CRM; com a IA ligada, há transferência, e ela está no contrato".
+Nunca diga "conforme com a LGPD" nem "servidor no Brasil = LGPD". Diga o que sai do país e onde
+isso está no contrato.
