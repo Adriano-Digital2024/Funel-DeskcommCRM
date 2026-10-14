@@ -25,7 +25,7 @@
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
 import type { LinhaDeVocabulario } from "@/lib/schemas/tags";
 
@@ -63,7 +63,7 @@ const OBRA: LinhaDeVocabulario = {
 
 /** O que o banco devolve para o mapa do chip: antes e depois do rename. */
 let renomeado = false;
-let invalidadas: ReturnType<typeof vi.spyOn<QueryClient, "invalidateQueries">>;
+let invalidadas: MockInstance<QueryClient["invalidateQueries"]>;
 
 const leiturasDeCores = () =>
   gets.mock.calls.filter(([url]) => url === "/api/v1/tags/cores").length;
