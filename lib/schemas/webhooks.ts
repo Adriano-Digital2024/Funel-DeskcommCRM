@@ -7,6 +7,7 @@
  * na primeira vez que alguém acrescentou um. Agora não há número a envelhecer.)
  */
 import { z } from "zod";
+import { webhookFormFieldsSchema } from "@/lib/webhooks/formulario";
 
 import {
   GATILHO_DE_DATA_DO_FUNIL,
@@ -126,6 +127,13 @@ export const GATILHOS_DO_TRIGGER_DE_LEAD = [
  *
  * ponytail: veto inteiro, não detecção de laço. Cai quando o item 5 da #1528
  * existir (GUC `app.caused_by_rule` copiada pelo trigger para `metadata`).
+ *
+ * A EXCEÇÃO é a continuação do ganho (#2769), tratada em
+ * `acoesQueFechamLaco`: em `lead.won` a ação que a regra DECLARA só tem uma
+ * moda — criar o card no funil de pós-venda, sem tocar no negócio que ganhou.
+ * Quem garante isso é a própria ação (`lib/automation/actions/create-or-move-lead.ts`
+ * recusa `lead.won` no MESMO funil); aqui é só a porta que deixa a regra ser
+ * criada e a tela oferecer o passo.
  */
 export const ACOES_QUE_REGRAVAM_O_LEAD = ["assign_owner", "create_or_move_lead"] as const;
 
@@ -166,7 +174,26 @@ export function acoesQueFechamLaco(
   actions: readonly { type: string; config?: Record<string, unknown> }[] | undefined,
 ): string[] {
   if (!triggerEvent || !(GATILHOS_DO_TRIGGER_DE_LEAD as readonly string[]).includes(triggerEvent)) return [];
-  return tiposDeAcao(actions).filter((t) => (ACOES_QUE_REGRAVAM_O_LEAD as readonly string[]).includes(t));
+  const fecham: string[] = [];
+  for (const acao of actions ?? []) {
+    // A EXCEÇÃO #2769: a porta do ganho. Em `lead.won`, `create_or_move_lead`
+    // declarada NA PRÓPRIA regra é a continuação do negócio para o funil de
+    // pós-venda — ela cria um card NOVO e não escreve no negócio ganho, então o
+    // laço que a #1528 vetou não existe aqui. É a ação que recusa `lead.won` no
+    // MESMO funil, então o caminho "mover o recém-ganho" continua fechado.
+    //
+    // O alvo é ESTREITO de propósito: vale quando a regra declara a ação com o
+    // funil visível no editor. `ai_decide` que ESCOLHE mover fica de fora — o
+    // alvo mora dentro de `config.opcoes`, o modelo decide em tempo de execução
+    // e a recusa da #1528 continua valendo para o par. Ampliar é medir antes.
+    const ehContinuacaoDoGanho = acao.type === "create_or_move_lead" && triggerEvent === "lead.won";
+    for (const tipo of tiposDeAcao([acao])) {
+      if (!(ACOES_QUE_REGRAVAM_O_LEAD as readonly string[]).includes(tipo)) continue;
+      if (ehContinuacaoDoGanho && tipo === "create_or_move_lead") continue;
+      fecham.push(tipo);
+    }
+  }
+  return fecham;
 }
 
 function recusarLacoDeLead(
@@ -204,7 +231,19 @@ export const conditionSchema = z.object({
 const acoesFixas = [
   z.object({ type: z.literal("create_or_move_lead"), config: z.object({ pipeline_id: z.string().uuid(), stage_id: z.string().uuid() }) }),
   z.object({ type: z.literal("send_whatsapp_message"), config: z.object({ channel_session_id: z.string().uuid(), template: z.string().min(1).max(2000) }) }),
-  z.object({ type: z.literal("add_tag"), config: z.object({ tags: z.array(z.string().min(1).max(60)).min(1).max(10) }) }),
+  z.object({
+    type: z.literal("add_tag"),
+    config: z.object({
+      tags: z.array(z.string().min(1).max(60)).min(1).max(10),
+      /**
+       * #2498 — onde a etiqueta é GRAVADA: `card` (padrão, o comportamento de
+       * sempre) ou `contato`. Opcional de propósito: as regras antigas não têm
+       * a chave e continuam iguais; sem `.optional()` o zod descartaria o campo
+       * no save e a tela mostraria uma escolha que não foi gravada.
+       */
+      destino: z.enum(["card", "contato"]).optional(),
+    }),
+  }),
   z.object({ type: z.literal("assign_owner"), config: z.object({ user_id: z.string().uuid() }) }),
   z.object({
     type: z.literal("send_ai_message"),
@@ -351,9 +390,11 @@ export const createWebhookSourceSchema = z.object({
       email: z.array(z.string()).optional(),
     })
     .optional(),
+  form_fields: webhookFormFieldsSchema.optional(),
   secret: z.string().min(16).max(200).nullish(),
 });
 export const updateWebhookSourceSchema = createWebhookSourceSchema.partial().extend({
+  name: z.string().trim().min(1).max(120).optional(),
   is_active: z.boolean().optional(),
   authorize_ai_on_capture: z.boolean().optional(),
 });
@@ -376,7 +417,23 @@ export const createAutomationRuleSchema = z
   })
   .superRefine(exigirConfigDoGatilhoDeData)
   .superRefine(exigirConfigDosGatilhosDeTempo)
+  .superRefine(exigirIdDaFonteWebhook)
   .superRefine(recusarLacoDeLead);
+
+function exigirIdDaFonteWebhook(
+  regra: { trigger_config?: Record<string, unknown> },
+  ctx: z.RefinementCtx,
+): void {
+  const sourceId = regra.trigger_config?.webhook_source_id;
+  if (sourceId === undefined || sourceId === null) return;
+  if (typeof sourceId !== "string" || !z.string().uuid().safeParse(sourceId).success) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["trigger_config", "webhook_source_id"],
+      message: "Escolha uma fonte de formulário válida.",
+    });
+  }
+}
 
 /**
  * O gatilho de data sem a configuração dele é uma regra que NUNCA dispara — a
@@ -455,6 +512,7 @@ export const updateAutomationRuleSchema = z
     // a varredura não sabe avaliar.
     exigirConfigDosGatilhosDeTempo(patch as { trigger_event: string; trigger_config?: Record<string, unknown> }, ctx);
   })
+  .superRefine(exigirIdDaFonteWebhook)
   // Só vê o laço quando o PATCH traz gatilho E ações; o PATCH parcial é
   // conferido contra a regra gravada na rota.
   .superRefine(recusarLacoDeLead);
