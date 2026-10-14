@@ -178,7 +178,7 @@ const DETERMINANTES_DE_OBJETO =
  * chamado; "lista de presentes" é compra; "lista de desejos" é vitrine.
  */
 const LISTAS_DE_ENVIO =
-  "contatos?|transmissao|envios?|mensagens|disparos?|divulgacao|promocoes|" +
+  "contatos?|contactos?|transmissao|envios?|mensagens|disparos?|divulgacao|promocoes|" +
   "ofertas|whatsapp|zap|voces|vcs";
 
 /**
@@ -382,7 +382,34 @@ const FRASES_DE_OPT_OUT: readonly RegExp[] = [
   // As duas leem hoje a MESMA constante (`LISTAS_DE_ENVIO`), que é o que torna
   // impossível uma voltar a divergir da outra.
   new RegExp(`\\bsair\\s+d(?:a|essa|esta)\\s+lista\\b${FREIO_DE_LISTA_QUALIFICADA}`, "u"),
-  /\bcancelar?\s+(?:a\s+)?(?:inscricao|assinatura)\b/u,
+  // pt-PT acrescenta `subscricao` (e o plural) à lista: em Portugal a pessoa
+  // pede para "cancelar a subscrição", e a palavra que faltava deixava o pedido
+  // sem bloqueio — ver o bloco de Portugal logo abaixo. `inscricao` e
+  // `assinatura` continuam a valer: a regra do Brasil não muda.
+  /\bcancelar?\s+(?:a\s+)?(?:inscricao|assinatura|subscricao|subscricoes)\b/u,
+  // ── PORTUGUÊS DE PORTUGAL: o pronome vem PRESO ao verbo, DEPOIS dele ──────
+  //
+  // Em pt-PT o pronome átono é ENCLÍTICO ("remova-me da lista"), enquanto o
+  // pt-BR o põe ANTES do verbo ("me remova da lista"). O padrão de cima já
+  // cobria a forma brasileira; a forma de cá não casava padrão NENHUM, embora
+  // seja a construção normal de quem escreve de Portugal — a mesma assimetria
+  // que o espanhol tinha com o pronome preso ao infinitivo ("escribirme").
+  //
+  // O verbo sozinho não basta (a lição do cabeçalho): o pedido só existe com o
+  // objeto de ENVIO depois do pronome — "remova-me da lista de contactos",
+  // "excluam-me da lista de envios". "remova-me a dúvida sobre o prazo" e
+  // "removam-me da lista de espera" continuam fora, pelo mesmo freio de lista
+  // qualificada e pela mesma régua do #1607 — ver os controles negativos em
+  // `tests/unit/opt-out-deteccao.test.ts`. `contacto(s)` é a grafia de Portugal
+  // de contato(s): sem ela, "retirem-me da lista de contactos" não passaria o
+  // freio (a lista só tinha a palavra brasileira).
+  new RegExp(
+    "\\b(?:tira|tire|tirem|tirar|remove|remova|removam|remover|retira|retire|retirem|retiram|retirar|" +
+      "exclui|exclua|excluam|excluir|apaga|apague|apaguem|apagar|elimina|elimine|eliminem|eliminar)" +
+      "-(?:me|nos)\\s+(?:d[ao]s?|dessa|desta|de\\s+sua|da\\s+sua)\\s+" +
+      `(?:lista\\b${FREIO_DE_LISTA_QUALIFICADA}|contactos\\b|contatos\\b)`,
+    "u",
+  ),
   /\b(?:me\s+)?descadastr\w*\b/u,
   /\bdescadastro\b/u,
   // ── espanhol ──────────────────────────────────────────────────────────────
