@@ -31,6 +31,13 @@ nenhuma**. O Traefik deixa de enxergá-lo e o domínio inteiro passa a responder
 `404 page not found` — não é erro do Next, é o 404 genérico do Traefik. A app
 está no ar, saudável, e inalcançável.
 
+**Atrás do proxy do Coolify o mesmo defeito tem outra cara:** no `https` o domínio
+responde **`503`** com o corpo `no available server` (é a rota "catchall" do
+Coolify), e no `http`, `404`. Medido em 07/10/2026
+([`evidence/2026-10-07-coolify-consumo/`](../../evidence/2026-10-07-coolify-consumo/README.md),
+`21b-coolify-503-catchall.txt`); quem procura só o `404` conclui que o roteamento
+está bom.
+
 ---
 
 ## 2. Verificação pós-deploy (não pule)
@@ -53,6 +60,7 @@ docker inspect "$(docker compose -f docker-compose.prod.yml ps -q app)" \
 curl -s -o /dev/null -w "%{http_code}\n" https://<DOMAIN>/
 # esperado: 200 (a página inicial pública; 307 para quem já tem sessão)
 # 404      = labels perdidas, refaça o deploy com os dois -f
+#            (atrás do Coolify: 503 "no available server"; lá são TRÊS -f, ver docs/saas/coolify.md)
 curl -s -o /dev/null -w '%{http_code}\n' https://<DOMAIN>/app
 # esperado: 307 (para /login) — o sinal de que quem responde é o app, e não
 #           outra coisa no domínio que também daria 200 em /
