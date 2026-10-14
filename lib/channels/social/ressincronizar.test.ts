@@ -37,6 +37,8 @@ vi.mock("@/lib/channels/health", () => ({ resolverSaudeDaConexaoRemovida: vi.fn(
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 vi.mock("../zernio/credentials", () => ({ zernioBaseUrl: () => "https://zernio.test" }));
 
+import { DICIONARIO } from "@/lib/i18n/dicionario";
+
 import { ressincronizarAssinaturaSocial } from "./store";
 
 const ORG = "org-1";
@@ -230,4 +232,13 @@ it("desligada JÁ na origem atual: recusa com a frase do connect, sem PUT", asyn
     "O webhook foi desativado pelo provedor. Reative-o após corrigir a falha.",
   );
   expect(puts()).toEqual([]);
+});
+
+// A tela mostra a mensagem do erro por `t(error)`: sem a entrada, quem usa a
+// interface em espanhol lê a recusa em português.
+it.each([
+  "O provedor não confirmou o novo endereço do webhook.",
+  "O webhook foi desativado pelo provedor. Reative-o após corrigir a falha.",
+])("a recusa %j tem espanhol no dicionário", (frase) => {
+  expect(DICIONARIO[frase]?.es).toBeTruthy();
 });

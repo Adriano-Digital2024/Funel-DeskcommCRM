@@ -12598,6 +12598,8 @@ export const DICIONARIO: Traducoes = {
   "Ressincronizar webhook": { es: "Resincronizar webhook" },
   "Webhook ressincronizado com o endereço atual.": { es: "Webhook resincronizado con la dirección actual." },
   "O webhook já apontava para este endereço.": { es: "El webhook ya apuntaba a esta dirección." },
+  "O provedor não confirmou o novo endereço do webhook.": { es: "El proveedor no confirmó la nueva dirección del webhook." },
+  "O webhook foi desativado pelo provedor. Reative-o após corrigir a falha.": { es: "El proveedor desactivó el webhook. Reactívalo después de corregir la falla." },
   "Receber no atendimento": { es: "Recibir en atención" },
   "Remover do atendimento": { es: "Quitar de la atención" },
   "Desconectar conta": { es: "Desconectar cuenta" },
