@@ -472,6 +472,13 @@ identifica su red y pon TRAEFIK_NETWORK=<nombre> en el .env antes de volver a in
   ["Diagnóstico completo dos serviços:"]="Diagnóstico completo de los servicios:"
   ["Depois de corrigir o .env, é só subir de novo (nada é perdido):"]="Después de corregir el .env, solo levántalo de nuevo (no se pierde nada):"
   ["Travou? Leve o log para a comunidade — tem gente que já passou por isso:"]="¿Se atascó? Lleva el log a la comunidad — hay gente que ya pasó por esto:"
+  # variante "quase lá" sem certificado: o app no confió en el HTTPS de su propio dominio
+  ["Quase lá — falta o cadeado (HTTPS) do seu domínio"]="Ya casi — falta el candado (HTTPS) de tu dominio"
+  ["refazer nada — o certificado de {1} ainda não saiu."]="rehacer nada — el certificado de {1} todavía no salió."
+  ["Isso leva alguns minutos depois que o domínio aponta para esta VPS."]="Eso tarda algunos minutos después de que el dominio apunta a esta VPS."
+  ["Espere alguns minutos e confira (o certo é responder 307):"]="Espera algunos minutos y verifica (lo correcto es que responda 307):"
+  ["Quando der 307, rode de novo o mesmo comando de instalação: ele confere"]="Cuando dé 307, vuelve a ejecutar el mismo comando de instalación: revisa"
+  ["o que falta e termina, sem apagar nada."]="lo que falta y termina, sin borrar nada."
 
   # ── install.sh: telemetria_no_banner() ───────────────────────────────────
   ["  Telemetria: DESLIGADA — nenhum relatório de erro sai desta instalação."]="  Telemetría: DESACTIVADA — ningún reporte de error sale de esta instalación."
