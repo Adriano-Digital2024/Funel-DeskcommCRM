@@ -5899,6 +5899,9 @@ export const DICIONARIO: Traducoes = {
   "Mover um lead para outro funil está desligado nesta organização.": {
     es: "Mover un lead a otro embudo está desactivado en esta organización.",
   },
+  "A continuação de um negócio ganho só nasce em OUTRO funil. Aponte esta ação para o funil de pós-venda — nada foi movido.": {
+    es: "La continuación de un negocio ganado solo nace en OTRO embudo. Apunte esta acción al embudo de posventa — no se movió nada.",
+  },
   "Outra regra deste mesmo evento já levou o lead para outro funil. Vale a primeira regra; esta não transfere de novo.":
     {
       es: "Otra regla de este mismo evento ya llevó el lead a otro embudo. Vale la primera regla; esta no lo transfiere de nuevo.",
