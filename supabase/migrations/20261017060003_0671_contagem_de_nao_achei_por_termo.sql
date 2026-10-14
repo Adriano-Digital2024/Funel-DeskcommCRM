@@ -1,6 +1,6 @@
 -- manifest: **A contagem de uso das capacidades ganha leitura POR TERMO: `fn_agent_tool_usage_por_termo` (#484, fatia do caminho 2).** O (#484) caminho 1 já parou de auditar "não achei" como sucesso (PR #1182), mas o painel agregava só por `tool_name` e não dizia QUAL termo não foi encontrado. A tool passa a declarar o termo (`termoBuscado`) e a auditoria sobe `metadata.termo`; esta migration cria a leitura `fn_agent_tool_usage_por_termo(uuid, uuid, timestamptz)` que agrupa por (tool_name, termo). Sem coluna nova, sem mudança na `fn_agent_tool_usage` que já existe (mudar o GROUP BY dela quebraria `montarUsoDeCapacidades`, que deduplica por nome de tool).
 
--- ---- contagem de "não achei" POR TERMO no uso das capacidades (migration 0655, #484) ----
+-- ---- contagem de "não achei" POR TERMO no uso das capacidades (migration 0671, #484) ----
 --
 -- O QUE ESTAVA MORTO
 -- ------------------
@@ -78,6 +78,12 @@ $$;
 
 comment on function public.fn_agent_tool_usage_por_termo(uuid, uuid, timestamptz) is
   'Uso das capacidades (tools MCP) de um agente agrupado POR TERMO: total, falhas e a última vez de cada termo declarado pela tool (`metadata.termo`). Irmã de fn_agent_tool_usage (que agrega por tool): esta separa "não achei sempre o mesmo termo" de "não achei por sorte".';
+
+-- Doutrina 9: a função nasce com EXECUTE para PUBLIC (padrão do Postgres) e
+-- para anon (default ACL do Supabase); sem os dois revoke, o PostgREST a expõe
+-- como RPC à anon key.
+revoke execute on function public.fn_agent_tool_usage_por_termo(uuid, uuid, timestamptz)
+  from public, anon;
 
 grant execute on function public.fn_agent_tool_usage_por_termo(uuid, uuid, timestamptz)
   to authenticated, service_role;
