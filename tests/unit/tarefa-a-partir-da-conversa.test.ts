@@ -134,7 +134,7 @@ describe("POST /api/v1/tasks — criar a partir da conversa (#2818)", () => {
   }
 
   it("⭐ grava o vínculo com a demanda e o contato da conversa", async () => {
-    const espiao = fazerSupabase([{ data: LINHA }]);
+    const espiao = fazerSupabase([{ data: { id: DEMANDA } }, { data: LINHA }]);
     const { POST } = await import("@/app/api/v1/tasks/route");
 
     const res = await POST(
@@ -157,7 +157,7 @@ describe("POST /api/v1/tasks — criar a partir da conversa (#2818)", () => {
   });
 
   it("aceita a criação com a demanda (a coluna chegou ao insert, não ficou de fora)", async () => {
-    const espiao = fazerSupabase([{ data: LINHA }]);
+    const espiao = fazerSupabase([{ data: { id: DEMANDA } }, { data: LINHA }]);
     const { POST } = await import("@/app/api/v1/tasks/route");
 
     await POST(pedido({ title: "Verificar o orçamento", demanda_id: DEMANDA }));
@@ -173,6 +173,31 @@ describe("POST /api/v1/tasks — criar a partir da conversa (#2818)", () => {
 
     expect(res.status).toBe(201);
     expect(espiao.inseridas[0]?.demanda_id).toBeUndefined();
+  });
+
+  it("⭐ demanda de OUTRA organização é recusada com 422, e nada é gravado", async () => {
+    // A conferência não acha a demanda na organização da sessão (maybeSingle →
+    // null): a chave estrangeira sozinha aceitaria, porque não passa pela RLS.
+    const espiao = fazerSupabase([{ data: null }, { data: LINHA }]);
+    const { POST } = await import("@/app/api/v1/tasks/route");
+
+    const res = await POST(pedido({ title: "Ligar", demanda_id: DEMANDA }));
+
+    expect(res.status).toBe(422);
+    expect(espiao.inseridas).toHaveLength(0);
+    // A régua é a organização ATIVA da sessão, nunca algo vindo do corpo.
+    expect(espiao.filtros).toContainEqual(["organization_id", ORG]);
+    expect(espiao.filtros).toContainEqual(["id", DEMANDA]);
+  });
+
+  it("falha ao conferir a demanda é 500, e nada é gravado (falha fechada)", async () => {
+    const espiao = fazerSupabase([{ error: { message: "boom" } }, { data: LINHA }]);
+    const { POST } = await import("@/app/api/v1/tasks/route");
+
+    const res = await POST(pedido({ title: "Ligar", demanda_id: DEMANDA }));
+
+    expect(res.status).toBe(500);
+    expect(espiao.inseridas).toHaveLength(0);
   });
 
   it("demanda_id que não é uuid é recusado com 422, não gravado", async () => {
@@ -230,7 +255,7 @@ describe("PATCH /api/v1/tasks/[id] — vincular e desvincular (#2818)", () => {
   }
 
   it("vincular a demanda pela edição grava o id", async () => {
-    fazerSupabase([{ data: { status: "pending" } }, { data: LINHA }]);
+    fazerSupabase([{ data: { id: DEMANDA } }, { data: { status: "pending" } }, { data: LINHA }]);
     const { PATCH } = await import("@/app/api/v1/tasks/[id]/route");
 
     const res = await PATCH(patch({ demanda_id: DEMANDA }), ctx);
@@ -239,5 +264,27 @@ describe("PATCH /api/v1/tasks/[id] — vincular e desvincular (#2818)", () => {
     expect(vi.mocked(audit)).toHaveBeenCalledWith(
       expect.objectContaining({ metadata: { campos: ["demanda_id"] } }),
     );
+  });
+
+  it("⭐ vincular pela edição a demanda de OUTRA organização é 422, e a tarefa não muda", async () => {
+    const espiao = fazerSupabase([{ data: null }, { data: { status: "pending" } }, { data: LINHA }]);
+    const { PATCH } = await import("@/app/api/v1/tasks/[id]/route");
+
+    const res = await PATCH(patch({ demanda_id: DEMANDA }), ctx);
+
+    expect(res.status).toBe(422);
+    expect(espiao.filtros).toContainEqual(["organization_id", ORG]);
+    expect(espiao.filtros).toContainEqual(["id", DEMANDA]);
+    expect(vi.mocked(audit)).not.toHaveBeenCalled();
+  });
+
+  it("desvincular (null) não consulta demanda nenhuma", async () => {
+    const espiaoNulo = fazerSupabase([{ data: { status: "pending" } }, { data: { ...LINHA, demanda_id: null } }]);
+    const { PATCH } = await import("@/app/api/v1/tasks/[id]/route");
+
+    const res = await PATCH(patch({ demanda_id: null }), ctx);
+
+    expect(res.status).toBe(200);
+    expect(espiaoNulo.filtros).not.toContainEqual(["id", DEMANDA]);
   });
 });

@@ -34,6 +34,7 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { registraAtividadeDaTarefa } from "@/lib/tarefas/atividade";
+import { conferirDemanda } from "@/lib/tarefas/demanda";
 import { conferirResponsavel } from "@/lib/tarefas/responsavel";
 import { PRIORIDADES_DA_TAREFA, SITUACOES_DA_TAREFA, type Tarefa } from "@/lib/tarefas/tipos";
 
@@ -152,6 +153,21 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const supabase = await createClient();
+
+  if (parsed.data.demanda_id) {
+    // A chave estrangeira não passa pela RLS: sem esta conferência, a demanda
+    // de outra organização gravaria sem erro. A régua está em `lib/tarefas/demanda.ts`.
+    const veredito = await conferirDemanda(supabase, authz.org.orgId, parsed.data.demanda_id);
+    if (veredito === "falha_na_consulta") {
+      return fail("internal_error", t("Erro ao salvar a tarefa."), 500, { requestId });
+    }
+    if (veredito === "fora_da_organizacao") {
+      return fail("validation_failed", t("O negócio, o contato ou a demanda vinculada não existe."), 422, {
+        requestId,
+      });
+    }
+  }
+
   const { data, error } = await supabase
     .from("crm_tasks")
     .insert({
