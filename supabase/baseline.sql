@@ -54478,8 +54478,8 @@ on conflict (model) do update set
 -- nem situação, não entra na lista de abertas e não lembra ninguém). Em ambos o
 -- combinado morre, porque ele não volta para a tela de quem precisa cumprir.
 --
--- O vínculo é a DEMANDA, não a conversa direta (a decisão do dono na #2818,
--- opção A). A conversa já é atravessada pela demanda (`conversations.current_demanda_id`
+-- O vínculo é a DEMANDA, não a conversa direta (a opção A, preferida na
+-- proposta da #2818). A conversa já é atravessada pela demanda (`conversations.current_demanda_id`
 -- e a ponte `demanda_conversas`), e uma FK direta na conversa morreria com ela
 -- (cascade) — perderia o histórico do combinado. A demanda é a unidade de
 -- ATENDIMENTO: sobrevive à conversa pontual, e para o caso de uma conversa sem
