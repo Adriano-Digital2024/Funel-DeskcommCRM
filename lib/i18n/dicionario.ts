@@ -5899,6 +5899,9 @@ export const DICIONARIO: Traducoes = {
   "Mover um lead para outro funil está desligado nesta organização.": {
     es: "Mover un lead a otro embudo está desactivado en esta organización.",
   },
+  "A continuação de um negócio ganho só nasce em OUTRO funil. Aponte esta ação para o funil de pós-venda — nada foi movido.": {
+    es: "La continuación de un negocio ganado solo nace en OTRO embudo. Apunte esta acción al embudo de posventa — no se movió nada.",
+  },
   "Outra regra deste mesmo evento já levou o lead para outro funil. Vale a primeira regra; esta não transfere de novo.":
     {
       es: "Otra regla de este mismo evento ya llevó el lead a otro embudo. Vale la primera regla; esta no lo transfiere de nuevo.",
@@ -15453,6 +15456,17 @@ export const DICIONARIO: Traducoes = {
   },
   "Nenhum negócio com este campo de data neste período.": {
     es: "Ningún negocio con este campo de fecha en este período.",
+  },
+  // #2728 — o editor de campos do funil monta a condição de exibição.
+  "Mostrar só quando:": { es: "Mostrar solo cuando:" },
+  "Sempre mostrar": { es: "Mostrar siempre" },
+  "Campo da condição": { es: "Campo de la condición" },
+  "Operador da condição": { es: "Operador de la condición" },
+  "Valor da condição": { es: "Valor de la condición" },
+  "é igual a": { es: "es igual a" },
+  "é maior que": { es: "es mayor que" },
+  "Escondido, o campo não aparece no formulário nem é validado como obrigatório, e o valor já gravado continua no registro.": {
+    es: "Oculto, el campo no aparece en el formulario ni se valida como obligatorio, y el valor ya guardado sigue en el registro.",
   },
 };
 
