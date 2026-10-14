@@ -2491,6 +2491,37 @@ fi
 # que existe para quem parou no MEIO. Aqui nada ficou pela metade: a config
 # está salva e a stack está de pé; falta o app responder.
 if [ "${APP_SAUDAVEL:-0}" != 1 ]; then
+  # `tls_recusado` (lib/net/alcance.ts) = o app não confiou no certificado do
+  # PRÓPRIO domínio. Num domínio recém-apontado é o cadeado que ainda não saiu
+  # (medido atrás do Coolify em 14/10/2026: o 1º pedido ao Let's Encrypt falhou
+  # e o certificado saiu ~3 min depois). Mandar procurar chave no .env aqui é
+  # mandar a pessoa consertar o que não está quebrado.
+  if printf '%s' "${health_body:-}" | grep -q '"tls_recusado"'; then
+    cat <<SEM_CADEADO
+
+$(c_ylw "═══════════════════════════════════════════════════════")
+$(c_ylw " $(t "Quase lá — falta o cadeado (HTTPS) do seu domínio")")
+$(c_ylw "═══════════════════════════════════════════════════════")
+
+  $(t "A configuração está salva e os contêineres estão no ar. Você NÃO precisa")
+  $(t "refazer nada — o certificado de {1} ainda não saiu." "${DOMAIN}")
+  $(t "Isso leva alguns minutos depois que o domínio aponta para esta VPS.")
+
+  $(t "Espere alguns minutos e confira (o certo é responder 307):")
+
+       curl -sI https://${DOMAIN}/app | head -1
+
+  $(t "Quando der 307, rode de novo o mesmo comando de instalação: ele confere")
+  $(t "o que falta e termina, sem apagar nada.")
+
+  $(t "Travou? Leve o log para a comunidade — tem gente que já passou por isso:")
+
+       ${COMUNIDADE_URL}
+
+SEM_CADEADO
+    trap apaga_temporarios EXIT
+    exit 1
+  fi
   cat <<INCOMPLETO
 
 $(c_ylw "═══════════════════════════════════════════════════════")
