@@ -377,11 +377,6 @@ const ESPANHOL_NAO_PEDE = [
  * só avisou que vai remover o produto do carrinho.
  */
 const PT_PT_PEDE_PARA_SAIR = [
-  // "cancelar a subscrição" — a frase do corpo da issue.
-  "cancelar a subscrição",
-  "quero cancelar a subscrição",
-  "podem cancelar a subscrição, por favor",
-  "cancela a subscrição",
   // "remover" na gramática de Portugal — pronome PRESO ao verbo, depois dele.
   "remova-me da lista",
   "removam-me da lista",
@@ -404,6 +399,22 @@ const PT_PT_NAO_PEDE = [
   // Outra lista — quem escreve isto QUER continuar a ser contactado.
   "removam-me da lista de espera",
   "remova-me da lista de desejos",
+  // "contactos" sem "lista": a forma brasileira ("me remova dos contatos do
+  // fornecedor") também não bloqueia.
+  "remova-me dos contatos do fornecedor",
+];
+
+/**
+ * "cancelar a subscrição" — a frase do corpo da issue — ESCALA e não bloqueia:
+ * em Portugal a palavra também é o plano do ginásio ou da revista, e quem
+ * pergunta "posso cancelar a subscrição e voltar depois?" quer resposta.
+ */
+const PT_PT_ESCALA_SEM_BLOQUEAR = [
+  "cancelar a subscrição",
+  "quero cancelar a subscrição",
+  "podem cancelar a subscrição, por favor",
+  "cancela a subscrição",
+  "posso cancelar a subscrição e voltar depois?",
 ];
 
 describe("português de Portugal — o vocabulário da issue #2343", () => {
@@ -416,6 +427,13 @@ describe("português de Portugal — o vocabulário da issue #2343", () => {
   for (const texto of PT_PT_NAO_PEDE) {
     it(`NÃO bloqueia: ${texto}`, () => {
       expect(ehPedidoDeOptOut(texto)).toBe(false);
+    });
+  }
+
+  for (const texto of PT_PT_ESCALA_SEM_BLOQUEAR) {
+    it(`escala sem bloquear: ${texto}`, () => {
+      expect(ehPedidoDeOptOut(texto)).toBe(false);
+      expect(ehOptOutProvavel(texto)).toBe(true);
     });
   }
 
