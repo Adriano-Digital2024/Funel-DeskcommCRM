@@ -149,6 +149,17 @@ describe("fiação — o \"digitando…\" cobre o turno inteiro até a 1ª bolha
     expect(envios.length).toBe(todos.length);
     expect(FONTE_INBOUND).toMatch(/\} finally \{\n\s*\/\/[^\n]*\n\s*pararDigitando\(\);\n\s*await mcpCleanup\?\.\(\);/);
   });
+
+  it("a passagem para a equipe para de renovar ANTES do aviso de escalação sair", () => {
+    // O aviso do piso (`seq === 0`) vai ao canal por `avisarLeadDaEscalacao`, que
+    // NÃO passa pelos `send` acima. Sem parar aqui, a renovação de 10s reacendia
+    // o "digitando…" depois do "vou te passar para a equipe".
+    const tool = FONTE_INBOUND.indexOf("    request_human_handoff: tool({");
+    expect(tool).toBeGreaterThan(-1);
+    const aviso = FONTE_INBOUND.indexOf("avisarLeadDaEscalacao(", tool);
+    expect(aviso).toBeGreaterThan(tool);
+    expect(FONTE_INBOUND.slice(tool, aviso)).toMatch(/^\s*pararDigitando\(\);$/m);
+  });
 });
 
 describe("fiação — a espera humana é paga UMA vez por turno", () => {
