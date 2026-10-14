@@ -399,13 +399,15 @@ describe("create_or_move_lead — não lê nenhuma chave classificacao_inicial_*
 // O que este bloco prende:
 //   1. o card NOVO nasce no funil de destino COM os dados da origem (título,
 //      descrição, contato, valor, tags, campos personalizados) — nunca em
-//      branco — e traz `source_metadata.clonado_de`, o vínculo que liga os dois
-//      cards para a linha do tempo;
+//      branco — e traz `source_metadata.clonado_de`, o ponteiro que liga os
+//      dois cards (gravado; nenhuma tela o mostra ainda — #2769, item 2);
 //   2. a origem não recebe UMA escrita: `status` segue `won` e a etapa de
 //      ganho continua sendo a dela;
 //   3. apontar a ação para o MESMO funil é RECUSA, não movimento — regravar o
 //      negócio que acabou de ganhar realimenta o próprio gatilho (#1528);
-//   4. o contato que JÁ tem card aberto no pós-venda não ganha um segundo.
+//   4. a continuação é UMA por NEGÓCIO de origem: o mesmo ganho reentregue
+//      não cria um segundo card, e a 2ª venda do mesmo contato ganha o seu
+//      sem mexer no card da 1ª.
 const FUNIL_DE_VENDAS = PIPE;
 const FUNIL_DE_POS_VENDA = "66666666-4444-4444-8866-666666666666";
 const ETAPA_DE_GANHO = etapa({
@@ -509,8 +511,8 @@ describe("create_or_move_lead — lead.won cria a continuação no funil de pós
       tags: ["orcamento"],
       custom_fields: { ambiente: "cozinha" },
       source: "whatsapp",
-      // O vínculo "continuação de" — é por ele que a linha do tempo mostra a
-      // jornada inteira. `retomado_de_lead_id` fica NULLO de propósito: este
+      // O ponteiro "continuação de" (gravado; a tela ainda não o mostra).
+      // `retomado_de_lead_id` fica NULLO de propósito: este
       // card não é uma nova TENTATIVA do mesmo negócio, é a continuação de um
       // negócio que JÁ ganhou (contá-lo aqui corromperia "tentativas até ganhar").
       retomado_de_lead_id: null,
@@ -568,31 +570,78 @@ describe("create_or_move_lead — lead.won cria a continuação no funil de pós
     expect(db.escritas).toEqual([]);
   });
 
-  it("contato que JÁ tem card aberto no pós-venda: move, não cria um segundo", async () => {
-    const jaLa = {
-      id: "lead-pos-antigo",
+  it("2ª venda do MESMO contato com o pós-venda da 1ª em andamento: card próprio, e o da 1ª não volta de etapa", async () => {
+    const emViagem = etapa({ id: "em_viagem", slug: "em_viagem", name: "Em viagem", pipeline_id: FUNIL_DE_POS_VENDA, position: 8000 });
+    const posDaPrimeira = {
+      id: "pos-da-primeira",
       pipeline_id: FUNIL_DE_POS_VENDA,
-      stage_id: "triagem",
+      stage_id: "em_viagem",
       organization_id: ORG_ID,
       contact_id: "contato-1",
       status: "open",
-      title: "Reforma da cozinha",
+      title: "Viagem 1",
+      source_metadata: { clonado_de: { lead_id: "venda-anterior", pipeline_id: FUNIL_DE_VENDAS } },
     };
-    const db = dbDoGanho([NEGOCIO_GANHO, jaLa]);
+    const db = dbDoGanho([NEGOCIO_GANHO, posDaPrimeira], [emViagem]);
     const ctx = ctxDoGanho(db);
 
     const resultado = await getAction("create_or_move_lead")!.execute(ctx, CONFIG_POS_VENDA);
 
     expect(resultado).toMatchObject({ type: "create_or_move_lead", status: "success" });
-    expect(db.tabelas.crm_leads, "nada de segundo card no pós-venda").toHaveLength(2);
-    expect(db.tabelas.crm_leads.find((l) => l.id === "lead-pos-antigo")).toMatchObject({
-      stage_id: "pos_venda",
+    const doPosVenda = db.tabelas.crm_leads.filter((l) => l.pipeline_id === FUNIL_DE_POS_VENDA);
+    expect(doPosVenda, "a 2ª venda ganha o próprio card").toHaveLength(2);
+    expect(doPosVenda.find((l) => l.id === "pos-da-primeira"), "o card da 1ª venda não é tocado").toMatchObject({
+      stage_id: "em_viagem",
       status: "open",
     });
-    expect(db.tabelas.crm_leads.find((l) => l.id === NEGOCIO_GANHO.id)).toMatchObject({
-      status: "won",
-      stage_id: "pago",
+    expect(db.escritas.filter((e) => e.table === "crm_leads" && e.tipo !== "insert")).toEqual([]);
+  });
+
+  it.each([
+    ["com contato", "contato-1"],
+    ["sem contato", null],
+  ])("o mesmo ganho reentregue (%s): UM card só, e a regra segue sobre ele", async (_caso, contato) => {
+    const negocio = { ...NEGOCIO_GANHO, contact_id: contato };
+    const db = dbDoGanho([negocio]);
+    const ctxDe = () => {
+      const c = ctxDoGanho(db);
+      c.context = contato ? { ...c.context, lead: { ...negocio } } : { lead: { ...negocio } };
+      return c;
+    };
+
+    const primeira = await getAction("create_or_move_lead")!.execute(ctxDe(), CONFIG_POS_VENDA);
+    const ctxDaSegunda = ctxDe();
+    const segunda = await getAction("create_or_move_lead")!.execute(ctxDaSegunda, CONFIG_POS_VENDA);
+
+    const doPosVenda = db.tabelas.crm_leads.filter((l) => l.pipeline_id === FUNIL_DE_POS_VENDA);
+    expect(doPosVenda, "reentrega não duplica a continuação").toHaveLength(1);
+    expect(primeira.detail).toMatchObject({ criado: doPosVenda[0]?.id });
+    expect(segunda).toMatchObject({ status: "success", detail: { ja_existia: doPosVenda[0]?.id, origem: negocio.id } });
+    expect((ctxDaSegunda.context.lead as Record<string, unknown>).id, "as ações seguintes enxergam a continuação").toBe(
+      doPosVenda[0]?.id,
+    );
+  });
+
+  it("a leitura da continuação FALHA: recusa, nunca cria às cegas", async () => {
+    const db = makeDb({
+      contacts: [{ id: "contato-1", organization_id: ORG_ID }],
+      pipelines: [
+        funilRow({ id: FUNIL_DE_VENDAS, name: "Vendas" }),
+        funilRow({ id: FUNIL_DE_POS_VENDA, name: "Experiência do Cliente" }),
+      ],
+      stages: [ETAPA_DE_GANHO, ETAPA_DE_POS_VENDA],
+      leads: [NEGOCIO_GANHO] as never,
+      readError: (tabela, filtros) =>
+        tabela === "crm_leads" && filtros.some(([c]) => c.includes("clonado_de"))
+          ? { code: "57014", message: "canceling statement due to statement timeout" }
+          : null,
     });
+
+    const resultado = await getAction("create_or_move_lead")!.execute(ctxDoGanho(db), CONFIG_POS_VENDA);
+
+    expect(resultado).toMatchObject({ status: "failed", error: "canceling statement due to statement timeout" });
+    expect(db.tabelas.crm_leads, "falha transitória não vira card").toHaveLength(1);
+    expect(db.escritas).toEqual([]);
   });
 
   it("etapa de destino É de fechamento: recusa — o card não nasce já ganho", async () => {

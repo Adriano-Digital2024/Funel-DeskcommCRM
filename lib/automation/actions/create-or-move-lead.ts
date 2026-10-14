@@ -117,8 +117,9 @@ async function execute(ctx: ActionCtx, config: Record<string, unknown>): Promise
         // conteúdo daquele (o MESMO `montaPayloadDoClone` do `/clone`, então
         // título, descrição, contato, valor, dono, tags e campos personalizados
         // vêm juntos — nunca um card em branco). O vínculo dos dois cards é
-        // `source_metadata.clonado_de`, que `montaPayloadDoClone` grava; é por
-        // ele que a linha do tempo mostra a jornada inteira.
+        // `source_metadata.clonado_de`, que `montaPayloadDoClone` grava. O
+        // ponteiro fica gravado no card novo, mas nenhuma tela o mostra ainda
+        // (#2769, item 2) — e a origem não recebe ponteiro de volta.
         //
         // `retomado_de_lead_id` é anulado de propósito: `montaPayloadDoClone`
         // aponta para TODA origem encerrada, mas este card não é uma nova
@@ -172,15 +173,39 @@ async function execute(ctx: ActionCtx, config: Record<string, unknown>): Promise
             return { type: "create_or_move_lead", status: "failed", error: destino.texto };
           }
 
-          // NÃO DUPLICAR (#2769, item 3): o contato que JÁ tem card aberto no
-          // funil de destino é o da continuação anterior — mover para a etapa
-          // pedida em vez de nascer um segundo. A MESMA leitura do ramo por
-          // contato (#958), que filtra por `status = 'open'` naquele funil.
-          const existente = contactId ? await negocioAbertoDoContato(ctx, contactId, pipelineId) : null;
-          if (existente) {
-            const movido = await moveLeadHandler(ctx.admin, handlerCtx, existente, { to_stage_id: stageId });
-            publicaNoContexto(ctx, movido, contactId);
-            return { type: "create_or_move_lead", status: "success", detail: { moved: existente } };
+          // NÃO DUPLICAR (#2769, item 3): a chave é o NEGÓCIO de origem, não o
+          // contato. Pelo contato, a 2ª venda do mesmo cliente achava o
+          // pós-venda da 1ª, MOVIA aquele card de volta para a etapa inicial e
+          // ficava sem card próprio; e um negócio sem contato reentregue
+          // nascia duas vezes. Se a continuação DESTE negócio já existe neste
+          // funil, nada se escreve.
+          //
+          // A falha da leitura é recusa, não "não achei": tratá-la como
+          // ausência criaria o card de novo — a duplicata que esta guarda
+          // existe para impedir.
+          //
+          // Card de pós-venda criado À MÃO antes desta regra não tem
+          // `clonado_de` e não é reconhecido como continuação.
+          const { data: continuacao, error: continuacaoErr } = await ctx.admin
+            .from("crm_leads")
+            .select("*")
+            .eq("organization_id", ctx.organizationId)
+            .eq("pipeline_id", pipelineId)
+            .eq("source_metadata->clonado_de->>lead_id", lead.id)
+            .limit(1)
+            .maybeSingle();
+          if (continuacaoErr) {
+            return { type: "create_or_move_lead", status: "failed", error: continuacaoErr.message };
+          }
+          if (continuacao) {
+            // As ações seguintes da regra enxergam a MESMA continuação que
+            // enxergaram da primeira vez.
+            publicaNoContexto(ctx, continuacao as Record<string, unknown>, contactId);
+            return {
+              type: "create_or_move_lead",
+              status: "success",
+              detail: { ja_existia: String((continuacao as { id?: unknown }).id ?? ""), origem: lead.id },
+            };
           }
 
           const criado = await createLeadHandler(ctx.admin, handlerCtx, {
