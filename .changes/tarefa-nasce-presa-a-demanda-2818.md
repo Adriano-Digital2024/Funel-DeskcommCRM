@@ -8,7 +8,7 @@ No painel lateral da conversa, no Inbox, há agora a seção "Tarefas desta dema
 
 A tarefa nasce ligada à demanda em andamento, ao contato e ao negócio ativo da conversa. Ela aparece também na aba Tarefas, como qualquer outra, e a seção do Inbox mostra só as que ainda estão abertas.
 
-A seção aparece quando a conversa tem uma demanda em andamento. Se a demanda for apagada, a tarefa continua na lista, só sem o vínculo.
+A seção aparece quando a conversa tem uma demanda em andamento: encerrada a demanda, ela some, e não dá mais para prender tarefa nova a ela. Quem tem o papel Somente leitura vê as tarefas, mas não cria. Se a demanda for apagada, a tarefa continua na lista, só sem o vínculo.
 
 Você não precisa fazer nada.
 

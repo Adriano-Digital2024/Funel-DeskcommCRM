@@ -190,6 +190,23 @@ describe("POST /api/v1/tasks — criar a partir da conversa (#2818)", () => {
     expect(espiao.filtros).toContainEqual(["id", DEMANDA]);
   });
 
+  it("⭐ demanda ENCERRADA é recusada com 409, e nada é gravado (#2842)", async () => {
+    // `current_demanda_id` segue apontando a demanda depois de "Encerrar demanda":
+    // a tela antiga oferecia "Nova tarefa" e a tarefa nascia presa a um atendimento
+    // que já acabou. A tela agora esconde a seção — e a rota recusa por si.
+    const espiao = fazerSupabase([
+      { data: { id: DEMANDA, fechada_em: "2026-10-13T18:00:00.000Z" } },
+      { data: LINHA },
+    ]);
+    const { POST } = await import("@/app/api/v1/tasks/route");
+
+    const res = await POST(pedido({ title: "Ligar", demanda_id: DEMANDA }));
+
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("state_conflict");
+    expect(espiao.inseridas).toHaveLength(0);
+  });
+
   it("falha ao conferir a demanda é 500, e nada é gravado (falha fechada)", async () => {
     const espiao = fazerSupabase([{ error: { message: "boom" } }, { data: LINHA }]);
     const { POST } = await import("@/app/api/v1/tasks/route");
@@ -275,6 +292,20 @@ describe("PATCH /api/v1/tasks/[id] — vincular e desvincular (#2818)", () => {
     expect(res.status).toBe(422);
     expect(espiao.filtros).toContainEqual(["organization_id", ORG]);
     expect(espiao.filtros).toContainEqual(["id", DEMANDA]);
+    expect(vi.mocked(audit)).not.toHaveBeenCalled();
+  });
+
+  it("vincular pela edição a demanda ENCERRADA é 409, e a tarefa não muda (#2842)", async () => {
+    fazerSupabase([
+      { data: { id: DEMANDA, fechada_em: "2026-10-13T18:00:00.000Z" } },
+      { data: { status: "pending" } },
+      { data: LINHA },
+    ]);
+    const { PATCH } = await import("@/app/api/v1/tasks/[id]/route");
+
+    const res = await PATCH(patch({ demanda_id: DEMANDA }), ctx);
+
+    expect(res.status).toBe(409);
     expect(vi.mocked(audit)).not.toHaveBeenCalled();
   });
 

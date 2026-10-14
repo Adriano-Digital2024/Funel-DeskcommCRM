@@ -102,6 +102,11 @@ export async function PATCH(req: NextRequest, ctx: Contexto): Promise<Response> 
         requestId,
       });
     }
+    if (veredito === "encerrada") {
+      return fail("state_conflict", t("Esta demanda já foi encerrada. Crie a tarefa numa demanda em andamento."), 409, {
+        requestId,
+      });
+    }
   }
 
   // A situação ANTES da edição decide se esta é a vez em que a tarefa fechou.

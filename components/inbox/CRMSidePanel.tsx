@@ -5,6 +5,7 @@ import { AcervoSearch } from "./AcervoSearch";
 import { LeadEnrichment } from "./LeadEnrichment";
 import type { ProspectEnrichment } from "@/lib/prospecting/schema";
 import { useAuth } from "@/hooks/auth/AuthProvider";
+import { roleAtLeast } from "@/lib/auth/types";
 import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 
 import type { Locale } from "date-fns";
@@ -522,8 +523,12 @@ function CamposDoFunil({
 }
 
 export function CRMSidePanel({ conversation }: Props) {
-  const { user } = useAuth();
+  const { user, activeOrg } = useAuth();
   const readonly = user.support?.access_mode === "support_readonly";
+  // Criar tarefa é `agent`+ (a rota cobra `requireRole("agent")`): a MESMA régua
+  // da tela de Tarefas (`app/app/tasks/page.tsx`). `readonly` sozinho deixava o
+  // `viewer` ver "Nova tarefa", preencher e levar 403 ao salvar (#2842).
+  const podeCriarTarefa = (user.is_platform_admin && !user.support) || roleAtLeast(activeOrg?.role, "agent");
   const localeDaData = useLocaleDeData();
   const t = useT();
   const contact = conversation?.contacts ?? null;
@@ -834,11 +839,16 @@ export function CRMSidePanel({ conversation }: Props) {
           demanda vigente no canal — e traz o PRÓPRIO divisor, que por isso não
           é escrito aqui (sem demanda, o divisor ficaria órfão e dois traços
           ficariam em pé seguidos). */}
+      {/* Só a demanda vigente AINDA ABERTA: `current_demanda_id` continua
+          apontando a demanda depois de "Encerrar demanda", e a seção ficaria
+          oferecendo "Nova tarefa" ao lado de "Nenhuma demanda aberta" (#2842).
+          A régua de aberta é a da lista acima (`fechada_em is null`, na rota).
+          ponytail: a lista traz até 5 abertas; vigente fora delas não mostra a seção. */}
       <TarefasDaDemanda
-        demandaId={conversation.current_demanda_id ?? null}
+        demandaId={demandas?.find((d) => d.id === conversation.current_demanda_id)?.id ?? null}
         contactId={contactId}
         leadId={negocioAtivoId}
-        podeEditar={!readonly}
+        podeEditar={podeCriarTarefa}
       />
 
       <Separator />

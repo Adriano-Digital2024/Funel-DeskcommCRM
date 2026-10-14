@@ -11420,6 +11420,9 @@ export const DICIONARIO: Traducoes = {
   "O negócio, o contato ou a demanda vinculada não existe.": {
     es: "El negocio, el contacto o la demanda vinculada no existe.",
   },
+  "Esta demanda já foi encerrada. Crie a tarefa numa demanda em andamento.": {
+    es: "Esta demanda ya fue cerrada. Crea la tarea en una demanda en curso.",
+  },
   "O que ficou combinado, com prazo. Tarefa presa a um negócio aparece na linha do tempo dele.": {
     es: "Lo que quedó acordado, con plazo. Una tarea vinculada a un negocio aparece en su línea de tiempo.",
   },

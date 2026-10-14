@@ -166,6 +166,11 @@ export async function POST(req: NextRequest): Promise<Response> {
         requestId,
       });
     }
+    if (veredito === "encerrada") {
+      return fail("state_conflict", t("Esta demanda já foi encerrada. Crie a tarefa numa demanda em andamento."), 409, {
+        requestId,
+      });
+    }
   }
 
   const { data, error } = await supabase
