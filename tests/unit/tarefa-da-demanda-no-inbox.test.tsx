@@ -127,6 +127,20 @@ describe("TarefasDaDemanda — a seção do inbox", () => {
     expect(tarefasHook.chamadas).toHaveLength(0);
   });
 
+  it("⭐ o divisor é da seção: viaja com ela e não sobra traço sem demanda", () => {
+    // O painel desenha demanda | tarefas | memória e separa os blocos com um
+    // traço. O traço DESTA seção mora aqui dentro, então nasce com ela e some
+    // com ela. Se morasse no painel, a conversa sem demanda vigente — a maioria
+    // delas — ficaria com dois traços seguidos, um órfão colado no do bloco
+    // seguinte. Por isso o primeiro filho da seção é o divisor.
+    const comDemanda = render(<TarefasDaDemanda demandaId={DEMANDA} contactId="c-1" podeEditar />);
+    expect(comDemanda.container.firstElementChild?.getAttribute("data-orientation")).toBe("horizontal");
+    comDemanda.unmount();
+
+    const semDemanda = render(<TarefasDaDemanda demandaId={null} contactId="c-1" podeEditar />);
+    expect(semDemanda.container.querySelectorAll('[data-orientation="horizontal"]')).toHaveLength(0);
+  });
+
   it("a tarefa da demanda aparece na lista, com o prazo que a régua da tela mostra", () => {
     tarefasHook.tarefas = [tarefa({ due_date: "2000-01-01T12:00:00Z", title: "Ligar de volta" })];
     render(<TarefasDaDemanda demandaId={DEMANDA} contactId="c-1" podeEditar />);

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { FormularioDeTarefa } from "@/app/app/tasks/_components/FormularioDeTarefa";
 import { ListaDeTarefas } from "@/app/app/tasks/_components/ListaDeTarefas";
+import { Separator } from "@/components/ui/separator";
 import { useUser } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
 import { useTasks } from "@/hooks/tasks/useTasks";
@@ -47,12 +48,20 @@ export function TarefasDaDemanda({ demandaId, contactId, leadId, podeEditar }: P
   // um fetch que a seção nem usa. Sem demanda, nada disto existe.
   if (!demandaId) return null;
   return (
-    <SecaoDeTarefasDaDemanda
-      demandaId={demandaId}
-      contactId={contactId}
-      leadId={leadId}
-      podeEditar={podeEditar}
-    />
+    <>
+      {/* O divisor é DA SEÇÃO, não do painel. O painel desenha a demanda e a
+          memória com um `<Separator />` entre os blocos: se o divisor desta
+          seção morasse lá, uma conversa sem demanda vigente — a maioria delas —
+          ficaria com dois traços seguidos, porque a seção some e o divisor
+          fica. Carregando-o aqui, ele nasce e morre com o que ele separa. */}
+      <Separator />
+      <SecaoDeTarefasDaDemanda
+        demandaId={demandaId}
+        contactId={contactId}
+        leadId={leadId}
+        podeEditar={podeEditar}
+      />
+    </>
   );
 }
 

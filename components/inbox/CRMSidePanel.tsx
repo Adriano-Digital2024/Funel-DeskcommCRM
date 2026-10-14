@@ -827,13 +827,13 @@ export function CRMSidePanel({ conversation }: Props) {
         )}
       </section>
 
-      <Separator />
-
       {/* A TAREFA DO ATENDIMENTO (#2818): o combinado que o atendente faz no
           meio da conversa deixa de morrer em nota de texto e ganha prazo,
           responsável e situação — sem sair da tela. Fica logo DEPOIS da
           demanda porque é dela que a tarefa pende: a seção só se desenha com
-          demanda vigente no canal. */}
+          demanda vigente no canal — e traz o PRÓPRIO divisor, que por isso não
+          é escrito aqui (sem demanda, o divisor ficaria órfão e dois traços
+          ficariam em pé seguidos). */}
       <TarefasDaDemanda
         demandaId={conversation.current_demanda_id ?? null}
         contactId={contactId}
