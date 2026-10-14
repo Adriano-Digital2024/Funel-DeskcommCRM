@@ -165,14 +165,17 @@ Passos no painel:
    `app`, **não** `https` e **não** o IP do host — o TLS termina na Cloudflare);
 3. aponte `DOMAIN`, `NEXT_PUBLIC_APP_URL` e `NEXT_PUBLIC_ADMIN_URL` para esse mesmo
    hostname (`https://…`) e liste-o nos redirects do Supabase Auth;
-4. **bloqueie `/api/v1/webhooks/waha`** no WAF (`Security > WAF > Custom rules`), porque
-   neste modo o 403 que o Caddy dava não existe — ver `docs/threat-model.md` §1.1.
+4. (opcional) bloqueie `/api/v1/webhooks/waha` também no WAF (`Security > WAF > Custom
+   rules`). Neste modo o 403 que o Caddy dava não existe; quem recusa o que chega pela borda
+   é o próprio app — ver `docs/threat-model.md` §1.1.
 
 Notas:
 
 - **Single-server (Supabase self-hosted) não é suportado.** O instalador recusa
   `REVERSE_PROXY=cloudflared` nesse modo: as APIs do Supabase dependem do Caddy.
-- A borda da Cloudflare corta HTTP acima de ~100s (504/524). As rotas longas desta stack
-  (`/api/internal/agents/run*`, webhook do WAHA) são internas e não passam pelo túnel.
+- A borda da Cloudflare corta HTTP acima de ~100s (504/524). O webhook do WAHA é interno e
+  não passa pelo túnel. O runner do agente (`/api/internal/agents/run`) passa: o dispatcher o
+  chama pelo endereço público (`NEXT_PUBLIC_APP_URL`). O disparo não espera a resposta, mas uma
+  execução acima de 100s esbarra no teto — o efeito disso no app não foi medido.
 - Verificação: `docker compose -f docker-compose.prod.yml -f docker-compose.cloudflared.yml
   --env-file .env config --services` deve listar `cloudflared` e **não** listar `caddy`.

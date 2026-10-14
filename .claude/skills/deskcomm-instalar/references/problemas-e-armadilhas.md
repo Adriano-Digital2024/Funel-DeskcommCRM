@@ -179,9 +179,10 @@ No painel (Zero Trust > Networks > Tunnels): crie o túnel, copie o token e, em 
 Hostnames**, aponte o domínio para `http://app:3000` (nome `app`, não `https`, não o IP do
 host). Ponha `DOMAIN`, `NEXT_PUBLIC_APP_URL` e `NEXT_PUBLIC_ADMIN_URL` no mesmo hostname.
 
-⚠️ **Bloqueie `/api/v1/webhooks/waha` no WAF** (`Security > WAF > Custom rules`): neste modo o
-403 que o Caddy dava não existe, e o webhook global ficaria público. O HMAC continua valendo,
-mas é a segunda camada. Detalhes no cabeçalho de `docker-compose.cloudflared.yml`.
+Neste modo o 403 que o Caddy dava a `/api/v1/webhooks/waha` não existe; quem recusa o que chega
+pela borda é o próprio app. Bloquear o caminho também no WAF (`Security > WAF > Custom rules`) é
+camada extra, opcional. A assinatura do remetente vem desligada de fábrica (`/admin/sistema`).
+Detalhes no cabeçalho de `docker-compose.cloudflared.yml`.
 
 **Não funciona no single-server** (Supabase nesta mesma VPS): o instalador recusa, porque as
 APIs do Supabase dependem do Caddy.

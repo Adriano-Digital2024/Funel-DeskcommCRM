@@ -335,8 +335,8 @@ server; segredo em query string; `throw` cru na borda da API.
 - **VPS atrás de NAT** — `REVERSE_PROXY=cloudflared` entra o
   `docker-compose.cloudflared.yml`: desliga o Caddy e sobe o `cloudflared` (túnel
   *remotely-managed*, só `CLOUDFLARE_TUNNEL_TOKEN` no `.env`; rotas no painel da Cloudflare).
-  Sem porta publicada. O webhook global do WAHA perde o 403 do Caddy — precisa de regra de
-  WAF/Access. Não é suportado no single-server (o instalador recusa). Ver
+  Sem porta publicada. O webhook global do WAHA perde o 403 do Caddy; quem recusa o que chega
+  pela borda é o próprio app (`chegouPelaBorda`). Não é suportado no single-server (o instalador recusa). Ver
   `docs/runbooks/deploy.md` §5.
 - **Env vars** — nova variável entra em `.env.example` **e** em `lib/env.ts`. Nunca leia nem logue
   valor de `.env*`; só `.env.example` é template. Segredo/token só em header, nunca em query string.

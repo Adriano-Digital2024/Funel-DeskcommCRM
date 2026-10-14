@@ -255,8 +255,9 @@ healthcheck é um probe TCP interno e não sabe nada de roteamento.
 entra o `docker-compose.cloudflared.yml`:** desliga o Caddy e sobe o `cloudflared`, que
 publica por `app:3000` num túnel *remotely-managed* (só `CLOUDFLARE_TUNNEL_TOKEN` no
 `.env`; hostnames e TLS no painel da Cloudflare). Nenhuma porta é publicada. O webhook
-global do WAHA perde o 403 do Caddy e passa a depender de uma regra de WAF/Access na
-Cloudflare (o HMAC continua como segunda camada). Não é suportado no single-server — o
+global do WAHA perde o 403 do Caddy; quem recusa o que chega pela borda é o próprio app
+(`chegouPelaBorda`, `lib/http/ip-do-cliente.ts`). A assinatura do remetente é opcional e
+desligada de fábrica (`/admin/sistema`). Não é suportado no single-server — o
 instalador recusa. Ver `docs/runbooks/deploy.md` §5.
 
 Depois de qualquer deploy, confirme que `/` responde **200** (a página inicial

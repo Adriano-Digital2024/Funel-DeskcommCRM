@@ -58,10 +58,10 @@ NPM, e ali o bloqueio é responsabilidade do operador.
 
 O `docker-compose.cloudflared.yml` (instalação atrás de NAT, `REVERSE_PROXY=cloudflared`)
 **não tem como impor o 403 pelo compose**: o roteamento é administrado à distância, no
-painel da Cloudflare. O caminho continua protegido pelo HMAC do webhook
-(`WAHA_HMAC_SECRET`, `lib/waha/ingest.ts`), mas a primeira camada — o bloqueio do caminho
-— precisa ser uma regra de WAF/Access da Cloudflare. Sem essa regra, o único controle que
-sobra é o HMAC. CONFIRMADO por leitura do overlay e do `Caddyfile`.
+painel da Cloudflare. Quem recusa é o próprio app: a rota global responde 404 ao que
+chega com marca de proxy de borda, e o túnel marca com `cf-connecting-ip` (ver a linha da
+rota na tabela acima). A assinatura do remetente é opcional e desligada de fábrica
+(`/admin/sistema`); uma regra de WAF no painel é camada extra, opcional.
 
 Fora isso, o túnel **reduz** a superfície clássica: não publica porta de entrada nenhuma
 (nada de 80/443 escutando), então a varredura de porta e o `network_mode: host` que este
