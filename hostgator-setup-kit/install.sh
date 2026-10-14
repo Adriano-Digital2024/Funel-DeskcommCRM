@@ -2374,7 +2374,7 @@ fi
 # Na instalação não há versão anterior para onde voltar (o update.sh devolve a
 # anterior e aponta o diagnóstico), então a recusa é UM die com a mensagem da
 # instalação — e o que ela DIZ sobre o motivo é separado (#2648): o veredito
-# 'indisponivel' que o portão lê junta causas com diagnósticos OPPOSTOS (sem
+# 'indisponivel' que o portão lê junta causas com diagnósticos OPOSTOS (sem
 # buildx, registro fora, tag ainda publicando, sonda estourada no prazo), e a
 # mesma separação que o preflight do update.sh já fazia agora cabe aqui. Quem
 # decide a frase é `motivo_da_recusa_do_build_local` (em _common.sh), na mesma

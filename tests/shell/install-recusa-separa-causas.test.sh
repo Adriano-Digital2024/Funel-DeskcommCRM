@@ -2,7 +2,7 @@
 # ── install.sh: a recusa de construir SEPARA as causas (#2648) ───────────────
 #
 # O DEFEITO: o portão `build_local_permitido` lê o veredito 'indisponivel', e
-# ele JUNTA causas com diagnósticos OPPOSTOS — VPS sem o plugin buildx (o
+# ele JUNTA causas com diagnósticos OPOSTOS — VPS sem o plugin buildx (o
 # Docker instalado pelo apt), registro fora do ar, tag ainda publicando e sonda
 # estourada no `com_prazo 20` caem todos no mesmo veredito. O update.sh já
 # separava isso no preflight (`preflight_atualizacao`); o install.sh citava
@@ -10,12 +10,12 @@
 # rede está boa ia mexer na rede à toa enquanto o que faltava era o pacote
 # docker-buildx-plugin. Origem: triagem do #2644.
 #
-# O QUE ESTE ARQUIVO PROVA — o install.sh de ponta a ponta, com docker, curl,
+# O QUE ESTE ARQUIVO PROVA — o install.sh de ponta a ponta, com docker, curl, apt-cache,
 # crontab e uname substituídos por dublês (nenhum contêiner sobe, nenhum arquivo
 # fora do sandbox):
 #
 #   1. VPS SEM BUILDX: TODOS os subcomandos buildx falham e o `up -d` falhou →
-#      a recusa cita o buildx e o pacote docker-buildx-plugin — e NÃO culpa o
+#      a recusa cita o buildx e o pacote que esta VPS tem — e NÃO culpa o
 #      registro (é o defeito da #2648: o veredito único punha os dois no mesmo
 #      balde).
 #   2. REGISTRO FORA (com buildx instalado): a recusa cita o registro — e NÃO
@@ -114,6 +114,14 @@ case "${1:-}" in
 esac
 exit 0
 STUB
+# apt-cache: o índice de uma VPS Ubuntu com o Docker do apt — o plugin existe
+# como `docker-buildx`; `docker-buildx-plugin` é do repositório do Docker e não
+# está aqui. É o caso em que mandar instalar `docker-buildx-plugin` devolve
+# "E: Não é possível encontrar o pacote" (#2754). Nunca o apt de quem roda.
+cat > "$WORK/bin/apt-cache" <<'STUB'
+#!/usr/bin/env bash
+case "${2:-}" in docker-buildx) exit 0 ;; *) exit 100 ;; esac
+STUB
 cat > "$WORK/bin/uname" <<STUB
 #!/usr/bin/env bash
 [ "\$*" = "-m" ] && { printf 'x86_64\n'; exit 0; }
@@ -161,8 +169,10 @@ rodar sem_buildx SEM_BUILDX=1 UP_D_FORA=1
 check "saiu com 1 (a instalação para e o autômato sabe que não terminou)" [ "$RC" -eq 1 ]
 check "cita o diagnóstico certo: 'plugin buildx do Docker não está instalado'" \
   grep -q 'plugin buildx do Docker não está instalado' "$OUT"
-check "e ensina o pacote certo (docker-buildx-plugin)" \
-  grep -q 'docker-buildx-plugin' "$OUT"
+check "e ensina o pacote que ESTA VPS tem (docker-buildx, o nome do Ubuntu — #2754)" \
+  grep -q 'Instale o pacote docker-buildx e rode' "$OUT"
+check "e NÃO manda instalar docker-buildx-plugin, que o apt do Ubuntu não acha" \
+  bash -c "! grep -q 'docker-buildx-plugin' '$OUT'"
 check "NÃO culpa o registro (o defeito da #2648: o veredito único punha os dois no mesmo balde)" \
   bash -c "! grep -q 'o registro de imagens não respondeu' '$OUT'"
 check "não constrói: o overlay docker-compose.build.yml nunca é chamado" \

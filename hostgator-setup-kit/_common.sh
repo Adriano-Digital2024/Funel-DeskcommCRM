@@ -1148,7 +1148,7 @@ build_local_permitido() {  # build_local_permitido <versão alvo>
 # Por que o portão recusou? Ecoa UM motivo, pronto para a mensagem da recusa.
 #
 # O veredito que o portão lê é 'indisponivel', e ele JUNTA causas com
-# diagnósticos OPPOSTOS (#2648): sem o plugin buildx a inspeção falha nas
+# diagnósticos OPOSTOS (#2648): sem o plugin buildx a inspeção falha nas
 # quatro imagens; registro fora, tag ainda sem imagens publicadas e sonda
 # estourada no `com_prazo 20` falham do mesmo jeito no mesmo código de saída.
 # O update.sh já separava isso no preflight (`preflight_atualizacao`); o
@@ -1172,8 +1172,10 @@ motivo_da_recusa_do_build_local() {  # motivo_da_recusa_do_build_local <versão 
   # Sem buildx a inspeção falha nas QUATRO imagens e o veredito sai
   # 'indisponivel' — o mesmo de registro fora. Conferir o plugin ANTES de
   # atribuir a falha ao registro é o que o preflight do update.sh já fazia.
+  # O nome do pacote sai de `pacote_do_buildx` (#2754), o mesmo do preflight:
+  # `docker-buildx-plugin` não existe no apt do Ubuntu, onde o nome é `docker-buildx`.
   if ! com_prazo 20 docker buildx version >/dev/null 2>&1; then
-    printf '%s' "$(t "o plugin buildx do Docker não está instalado nesta VPS, e é com ele que confiro se a versão {1} está publicada — sem ele a sonda falha nas quatro imagens e o veredito sai como 'registro fora', o diagnóstico errado para uma VPS cuja rede está boa. Instale o pacote docker-buildx-plugin e rode este install.sh de novo." "$versao")"
+    printf '%s' "$(t "o plugin buildx do Docker não está instalado nesta VPS, e é com ele que confiro se a versão {1} está publicada — sem ele a sonda falha nas quatro imagens e o veredito sai como 'registro fora', o diagnóstico errado para uma VPS cuja rede está boa. Instale o pacote {2} e rode este install.sh de novo." "$versao" "$(pacote_do_buildx)")"
     return 0
   fi
   printf '%s' "$(t "o registro de imagens não respondeu para a versão {1} (DNS/rede, ou a tag ainda sem nenhuma imagem publicada — de fora os dois se parecem, e o kit não adivinha pelo texto do erro). Sem resposta do registro a construção aqui gastaria a memória desta VPS à toa, que é o defeito da #1955. Rode este install.sh de novo em alguns minutos." "$versao")"
