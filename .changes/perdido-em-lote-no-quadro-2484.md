@@ -9,3 +9,5 @@ No quadro do funil, a barra de ações em lote (que já tinha Mover, Responsáve
 A ação só aparece quando o funil tem uma etapa de perda, e a escrita respeita a organização e a permissão de cada item.
 
 Fatias seguintes da mesma proposta (ainda não incluídas): ações em lote na Inbox e nos Contatos.
+
+Contribuição de @webtecnica (#2868).
