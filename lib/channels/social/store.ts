@@ -310,7 +310,7 @@ export async function ressincronizarAssinaturaSocial(
   org: string,
   accountId: string,
   publicBase: string,
-): Promise<{ channel_id: string; resynced: boolean; url: string }> {
+): Promise<{ channel_id: string; resynced: boolean }> {
   const integration = await readSocialIntegration(db, org);
   if (!integration) throw new SocialError("Configure a integração primeiro.", 422);
   const canal = (await socialChannels(db, org)).find((c) => c.accountId === accountId);
@@ -327,19 +327,25 @@ export async function ressincronizarAssinaturaSocial(
   if (typeof token !== "string" || token.length === 0)
     throw new SocialError("Não foi possível recuperar a assinatura da conexão.", 422);
   const caminho = `/api/v1/webhooks/channel/${token}`;
-  const lista = z
-    .object({ webhooks: z.array(z.object({ _id: z.string(), url: z.string() })) })
-    .parse(await socialRequest(integration.key, "webhooks/settings"));
-  const achada = lista.webhooks.find((w) => w.url.endsWith(caminho));
+  const assinaturas = async () =>
+    z
+      .object({ webhooks: z.array(z.object({ _id: z.string(), url: z.string() })) })
+      .parse(await socialRequest(integration.key, "webhooks/settings")).webhooks;
+  const achada = (await assinaturas()).find((w) => w.url.endsWith(caminho));
   if (!achada)
     throw new SocialError("Não há assinatura de webhook para ressincronizar.", 422);
   const url = `${publicBase}${caminho}`;
-  if (achada.url === url) return { channel_id: canal.id, resynced: false, url };
+  if (achada.url === url) return { channel_id: canal.id, resynced: false };
   // PUT com só id + url: o resto da assinatura (segredo, eventos, nome) fica
-  // como está no provedor. Não validamos o corpo da resposta: uma resposta não-ok
-  // já lança em `socialRequest`, e reescrever a URL é o efeito que importa.
+  // como está no provedor.
   await socialRequest(integration.key, "webhooks/settings", { webhookId: achada._id, url }, "PUT");
-  return { channel_id: canal.id, resynced: true, url };
+  // Um 200 não prova a troca: um provedor que ignora o corpo responde ok e a
+  // tela diria "ressincronizado" com a assinatura ainda no domínio antigo. A
+  // prova é reler a assinatura pelo id e ver o endereço novo nela.
+  const relida = (await assinaturas()).find((w) => w._id === achada._id);
+  if (relida?.url !== url)
+    throw new SocialError("O provedor não confirmou o novo endereço do webhook.", 502);
+  return { channel_id: canal.id, resynced: true };
 }
 /** 404 on a provider DELETE means a previous attempt already removed it; retries must converge. */
 async function deleteAtProvider(key: string, path: string) {

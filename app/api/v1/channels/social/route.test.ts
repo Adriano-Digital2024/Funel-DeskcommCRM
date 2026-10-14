@@ -175,11 +175,7 @@ it("unlinks the profile under the trusted tenant and audits without secrets", as
   expect(JSON.stringify(h.audit.mock.calls)).not.toContain("secret-input");
 });
 it("ressincroniza o webhook sob o tenant confiável, com a origem atual, e audita o desfecho", async () => {
-  h.resync.mockResolvedValue({
-    channel_id: "ch",
-    resynced: true,
-    url: "https://crm.test/api/v1/webhooks/channel/tok",
-  });
+  h.resync.mockResolvedValue({ channel_id: "ch", resynced: true });
   const response = await call({ action: "resync", account_id: "a".repeat(24) });
   expect(response.status).toBe(200);
   // publicBase() do env de teste: a ação grava a assinatura pela origem ATUAL.

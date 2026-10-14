@@ -18,6 +18,8 @@
  * 2. Assinatura já na origem atual: no-op — nenhum PUT no provedor.
  * 3. Sem assinatura para o token desta linha: recusa nomeando o motivo, sem
  *    tocar o provedor.
+ * 4. Provedor que responde 200 sem aplicar a troca: a releitura acusa, e a
+ *    tela não diz "ressincronizado".
  *
  * O provedor é DUBLADO — nada de rede de verdade nesta suíte.
  */
@@ -84,12 +86,21 @@ const canal = {
   updated_at: "2026-10-05T00:00:00Z",
 };
 
-function provedor(assinaturas: Array<{ _id: string; url: string }>, status: Record<string, number> = {}) {
+function provedor(
+  assinaturas: Array<{ _id: string; url: string }>,
+  status: Record<string, number> = {},
+  { ignoraOCorpoDoPut = false } = {},
+) {
   h.fetch.mockImplementation(async (url: string, init: RequestInit) => {
     const key = `${init.method} ${String(url).replace("https://zernio.test/v1/", "")}`;
     if (status[key]) return new Response("{}", { status: status[key] });
     if (key === "GET webhooks/settings")
       return new Response(JSON.stringify({ webhooks: assinaturas }));
+    if (key === "PUT webhooks/settings" && !ignoraOCorpoDoPut) {
+      const corpo = JSON.parse(init.body as string) as { webhookId: string; url: string };
+      const alvo = assinaturas.find((w) => w._id === corpo.webhookId);
+      if (alvo) alvo.url = corpo.url;
+    }
     return new Response("{}", { status: 200 });
   });
 }
@@ -113,11 +124,9 @@ it("origem antiga: regrava a URL com a atual e mantém o caminho, sem tocar o ca
 
   const resultado = await ressincronizarAssinaturaSocial(db, ORG, CONTA, ORIGEM_ATUAL);
 
-  expect(resultado).toEqual({
-    channel_id: "ch-1",
-    resynced: true,
-    url: `${ORIGEM_ATUAL}${CAMINHO}`,
-  });
+  // Sem `url`: o endereço carrega o token do caminho, e o resultado vai para
+  // a resposta HTTP e para a auditoria.
+  expect(resultado).toEqual({ channel_id: "ch-1", resynced: true });
   // Grava pela id, mudando SÓ a URL — segredo/eventos/nome ficam no provedor.
   expect(puts()).toEqual([
     { url: "webhooks/settings", body: { webhookId: "wh-1", url: `${ORIGEM_ATUAL}${CAMINHO}` } },
@@ -132,11 +141,7 @@ it("origem já atual: no-op — nenhum PUT no provedor", async () => {
 
   const resultado = await ressincronizarAssinaturaSocial(db, ORG, CONTA, ORIGEM_ATUAL);
 
-  expect(resultado).toEqual({
-    channel_id: "ch-1",
-    resynced: false,
-    url: `${ORIGEM_ATUAL}${CAMINHO}`,
-  });
+  expect(resultado).toEqual({ channel_id: "ch-1", resynced: false });
   expect(puts()).toEqual([]);
   expect(updates).toHaveLength(0);
 });
@@ -158,4 +163,13 @@ it("provedor fora do ar no PUT: lança, para o chamador decidir", async () => {
   await expect(
     ressincronizarAssinaturaSocial(db, ORG, CONTA, ORIGEM_ATUAL),
   ).rejects.toThrow("O provedor não concluiu a operação (HTTP 500).");
+});
+
+it("provedor responde 200 e ignora o corpo do PUT: não declara sucesso", async () => {
+  provedor([{ _id: "wh-1", url: `${ORIGEM_ANTIGA}${CAMINHO}` }], {}, { ignoraOCorpoDoPut: true });
+  const { db } = fakeDb([canal]);
+
+  await expect(
+    ressincronizarAssinaturaSocial(db, ORG, CONTA, ORIGEM_ATUAL),
+  ).rejects.toThrow("O provedor não confirmou o novo endereço do webhook.");
 });
