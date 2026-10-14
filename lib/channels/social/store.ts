@@ -305,13 +305,14 @@ export async function connectSocialInbox(
  *
  * ─── Por que religa a assinatura ─────────────────────────────────────────────
  *
- * O provedor desliga a assinatura depois de entregas seguidas que falham — e
- * entregar no domínio antigo é exatamente isso. Trocar a URL sem religar
- * deixaria a tela dizendo "ressincronizado" com nada chegando. Aqui a causa da
- * falha (o endereço) é o que está sendo corrigido, então a troca religa. Já a
- * assinatura desligada que JÁ aponta para a origem atual falhou por outro
- * motivo: essa não é religada às cegas — recusa com a mesma frase de
- * `connectSocialInbox`.
+ * O provedor desliga a assinatura quando o endereço passa dias sem receber
+ * nenhuma entrega (pela documentação dele: 3 dias sem sucesso e 20 falhas
+ * seguidas), e um domínio antigo fora do ar pode chegar a isso. Trocar a URL
+ * sem religar deixaria a tela dizendo "ressincronizado" com nada chegando. Aqui
+ * a causa da falha (o endereço) é o que está sendo corrigido, então a troca
+ * religa. Já a assinatura desligada que JÁ aponta para a origem atual pode ter
+ * falhado por outro motivo (ou alguém já corrigiu a URL à mão no painel): essa
+ * não é religada às cegas — recusa com a mesma frase de `connectSocialInbox`.
  *
  * ─── O que NÃO faz ──────────────────────────────────────────────────────────
  *
