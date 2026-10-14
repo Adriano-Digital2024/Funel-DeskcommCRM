@@ -296,8 +296,22 @@ export async function connectSocialInbox(
  * o mesmo casamento que `connectSocialInbox` faz contra duplicação e que
  * `apagarAssinaturaSemId` faz para apagar. Casa-se pelo SUFIXO do caminho, e
  * não pela origem completa, justamente porque a origem pode ter mudado desde a
- * conexão. A gravação é `PUT webhooks/settings` com `webhookId` + `url`: o
- * provedor altera só a URL e deixa segredo, eventos e nome intactos.
+ * conexão. A gravação é `PUT webhooks/settings` com `webhookId`, `url` e
+ * `isActive: true`. A documentação do provedor
+ * (docs.zernio.com/webhooks/update-webhook-settings) diz que o PUT é parcial:
+ * "only provided fields will be updated" — segredo, eventos e nome ficam como
+ * estão. Isso é o que a documentação afirma, não o que esta suíte mede: o
+ * provedor aqui é dublado.
+ *
+ * ─── Por que religa a assinatura ─────────────────────────────────────────────
+ *
+ * O provedor desliga a assinatura depois de entregas seguidas que falham — e
+ * entregar no domínio antigo é exatamente isso. Trocar a URL sem religar
+ * deixaria a tela dizendo "ressincronizado" com nada chegando. Aqui a causa da
+ * falha (o endereço) é o que está sendo corrigido, então a troca religa. Já a
+ * assinatura desligada que JÁ aponta para a origem atual falhou por outro
+ * motivo: essa não é religada às cegas — recusa com a mesma frase de
+ * `connectSocialInbox`.
  *
  * ─── O que NÃO faz ──────────────────────────────────────────────────────────
  *
@@ -329,21 +343,32 @@ export async function ressincronizarAssinaturaSocial(
   const caminho = `/api/v1/webhooks/channel/${token}`;
   const assinaturas = async () =>
     z
-      .object({ webhooks: z.array(z.object({ _id: z.string(), url: z.string() })) })
+      .object({
+        webhooks: z.array(z.object({ _id: z.string(), url: z.string(), isActive: z.boolean() })),
+      })
       .parse(await socialRequest(integration.key, "webhooks/settings")).webhooks;
   const achada = (await assinaturas()).find((w) => w.url.endsWith(caminho));
-  if (!achada)
-    throw new SocialError("Não há assinatura de webhook para ressincronizar.", 422);
+  if (!achada) throw new SocialError("Não há assinatura de webhook para ressincronizar.", 422);
   const url = `${publicBase}${caminho}`;
-  if (achada.url === url) return { channel_id: canal.id, resynced: false };
-  // PUT com só id + url: o resto da assinatura (segredo, eventos, nome) fica
-  // como está no provedor.
-  await socialRequest(integration.key, "webhooks/settings", { webhookId: achada._id, url }, "PUT");
+  if (achada.url === url) {
+    if (!achada.isActive)
+      throw new SocialError(
+        "O webhook foi desativado pelo provedor. Reative-o após corrigir a falha.",
+        409,
+      );
+    return { channel_id: canal.id, resynced: false };
+  }
+  await socialRequest(
+    integration.key,
+    "webhooks/settings",
+    { webhookId: achada._id, url, isActive: true },
+    "PUT",
+  );
   // Um 200 não prova a troca: um provedor que ignora o corpo responde ok e a
-  // tela diria "ressincronizado" com a assinatura ainda no domínio antigo. A
-  // prova é reler a assinatura pelo id e ver o endereço novo nela.
+  // tela diria "ressincronizado" com a assinatura ainda no domínio antigo, ou
+  // ainda desligada. A prova é reler a assinatura pelo id e ver as duas coisas.
   const relida = (await assinaturas()).find((w) => w._id === achada._id);
-  if (relida?.url !== url)
+  if (relida?.url !== url || !relida.isActive)
     throw new SocialError("O provedor não confirmou o novo endereço do webhook.", 502);
   return { channel_id: canal.id, resynced: true };
 }
