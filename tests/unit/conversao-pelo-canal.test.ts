@@ -24,7 +24,6 @@ import { conversaoDeEtapaMetaHandler } from "@/lib/conversoes/etapa-meta.handler
 import { vendaPeloCanalLigada } from "@/lib/conversoes/venda-pelo-canal";
 import { MOTIVO_LEGIVEL } from "@/lib/conversoes/estado-da-conexao";
 import { EVENTOS_DE_ETAPA_NO_CANAL, rotuloDoEventoDaMeta } from "@/lib/conversoes/regras-meta";
-import { INTERNOS } from "@/lib/plataformas-de-anuncio/meta/conversions";
 import { zernioReportConversion } from "@/lib/channels/zernio/conversoes";
 import { resolveZernioCreds } from "@/lib/channels/zernio/credentials";
 import type { EventRow } from "@/lib/event-log/dispatcher";
@@ -374,25 +373,23 @@ describe("o handler escolhe UM caminho", () => {
 
 const ETAPA = "44444444-4444-4444-8444-444444444444";
 const CHAVE_DA_ETAPA = `MetaEtapa:${ETAPA}`;
-
 /**
- * O instante em que o negócio entrou na etapa — RELATIVO ao relógio, não uma
- * data cravada.
+ * ⚠️ RELATIVO, e não uma data fixa — e o porquê é uma bomba que já estourou.
  *
- * O transporte direto da Meta recusa evento com mais de 7 dias
- * (`IDADE_MAXIMA_MS` em lib/plataformas-de-anuncio/meta/conversions.ts), e o
- * caso "com a conexão direta ligada, a etapa segue por ela" passa por ele.
- * Escrita como `"2026-10-06T16:32:50.000Z"`, esta constante venceu sozinha sete
- * dias depois da entrega e derrubou o arquivo na `main` limpa: o transporte
- * recusou ANTES de tocar a rede (`tipo: "permanente"`, nenhuma chamada de
- * `fetch`, detalhe "evento com 7 dias — a plataforma recusa acima de 7"), o
- * handler devolveu `skipped` e o caso passou a exigir `ok` de um instante que
- * já não pode mais ser reportado. O caso da VENDA nunca caiu porque o dublê
- * monta o `closed_at` relativo (`new Date(Date.now() - 60_000)`): é o mesmo
- * remédio, no lado que estava errado. A asserção da janela, no caso da conexão
- * direta, é o que impede a data cravada de voltar.
+ * O transporte direto da Meta RECUSA evento com mais de 7 dias
+ * (`lib/plataformas-de-anuncio/meta/conversions.ts`, teto da plataforma). Este
+ * arquivo usava `"2026-10-06T16:32:50.000Z"`; em 13/10 a data cruzou o teto e o
+ * caso do caminho direto virou vermelho na `main` **sem ninguém tocar em
+ * nada** — verde no CI de 13/10 01:44Z (merge #2805) e vermelho no dia
+ * seguinte. Data fixa como instante de evento é a mesma classe do `[contact]`:
+ * envelhece sozinha.
+ *
+ * Uma hora atrás é recente para o teto, e todas as asserções que dependem do
+ * instante calculam a partir DESTA constante — nada aqui afirma o valor
+ * absoluto. O fixture de venda já usava data relativa (`closed_at`):
+ * `new Date(Date.now() - 60_000)`.
  */
-const ENTROU_NA_ETAPA = new Date(Date.now() - 60_000).toISOString();
+const ENTROU_NA_ETAPA = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
 const regraDaEtapa = (metaEvent = "InitiateCheckout") => ({
   meta_ads_conversion_rules: {
@@ -470,11 +467,6 @@ describe("o evento de ETAPA da Meta também sai pelo canal", () => {
       fakeAdmin({ sessao: CANAL_COM_PONTE, conexao: "ligada", extras: regraDaEtapa() }) as never,
     );
     const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(resposta({ events_received: 1 }));
-
-    // O dente que impede a data cravada de voltar: este caso só é verde com a
-    // entrada na etapa DENTRO da janela do transporte direto (medido pela mesma
-    // régua que o recusa: `INTERNOS.IDADE_MAXIMA_MS`).
-    expect(Date.now() - Date.parse(ENTROU_NA_ETAPA)).toBeLessThan(INTERNOS.IDADE_MAXIMA_MS);
 
     const r = await conversaoDeEtapaMetaHandler.handle(entrouNaEtapa);
 
