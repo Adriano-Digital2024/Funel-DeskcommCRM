@@ -51968,6 +51968,44 @@ begin
 end;
 $fn$;
 
+-- ---- o pedido de dados nasce só pelo caminho do servidor (migration 0672) ----
+-- A exportação de dados do titular só começa pela aprovação de alguém da
+-- equipe, na tela do pedido; a anonimização, pelo webhook assinado ou pela
+-- mesma aprovação. Os dois eventos que acordam esses workers são, então, fatos
+-- do SERVIDOR (chave de serviço, sem sessão), nunca um pedido de login. O
+-- gatilho fica em `event_log`, e não na lista de `emit_event`, para valer em
+-- todo caminho até a tabela. O `when` mantém o custo fora das demais inserções.
+--
+-- A escrita em `lgpd_requests` é do servidor pela mesma razão: o pedido nasce
+-- do webhook (`lib/lgpd/repository.ts`) e muda de estado pelos workers e pela
+-- aprovação. A leitura pela sessão continua como está (RLS).
+
+create or replace function public.fn_event_log_lgpd_so_do_servidor()
+returns trigger
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $fn$
+begin
+  if new.event_type in ('lgpd.data_request_received', 'lgpd.redact_received')
+     and auth.uid() is not null then
+    raise exception 'reserved_server_event' using errcode = '42501';
+  end if;
+  return new;
+end;
+$fn$;
+
+revoke all on function public.fn_event_log_lgpd_so_do_servidor() from public, anon, authenticated;
+grant execute on function public.fn_event_log_lgpd_so_do_servidor() to service_role;
+
+drop trigger if exists trg_event_log_lgpd_so_do_servidor on public.event_log;
+create trigger trg_event_log_lgpd_so_do_servidor
+  before insert on public.event_log
+  for each row
+  when (new.event_type in ('lgpd.data_request_received', 'lgpd.redact_received'))
+  execute function public.fn_event_log_lgpd_so_do_servidor();
+
+revoke insert, update, delete, truncate on table public.lgpd_requests from anon, authenticated;
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
