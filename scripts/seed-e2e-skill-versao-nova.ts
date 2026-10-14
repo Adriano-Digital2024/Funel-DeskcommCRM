@@ -29,6 +29,15 @@
  * do próprio "Adotar versão nova" da primeira e a spec falharia por o aviso já
  * ter sumido — o cenário seria lido do estado destruído pelo run anterior.
  *
+ * O IDIOMA do `manager` também volta ao começo. A spec troca para espanhol pela
+ * tela, e isso grava `user_metadata.locale = "es"` no usuário COMPARTILHADO do
+ * `.e2e-creds.json` (`app/actions/settings/trocarIdioma.ts`). Sem devolver, a
+ * segunda rodada no mesmo banco abriria a tela em espanhol e reprovaria no aviso
+ * em português — e as specs seguintes com o `manager` herdariam o espanhol.
+ * Volta para `null`, não para "pt-BR": `null` é a ausência de preferência, como a
+ * conta nasce, e herda o idioma da organização (mesma restauração de
+ * `i18n-espanhol-na-tela.spec.ts`).
+ *
  * `E2E_SKILL_SEM_VERSAO_NOVA=1` monta o CENÁRIO INVERSO: a cópia da organização
  * nasce forkada da versão ATUAL de plataforma, ou seja, o catálogo não publicou
  * nada depois da instalação. É o RED da spec — com ele a tela não tem nada a
@@ -93,6 +102,7 @@ interface SkillVersaoNova {
 
 interface Creds {
   org_id: string;
+  users: Record<string, { id: string } | undefined>;
   skill_versao_nova?: SkillVersaoNova;
 }
 
@@ -180,8 +190,21 @@ async function moverPonteiro(organizationId: string | null, versionId: string): 
   if (insErr) throw insErr;
 }
 
+/** Devolve o `manager` à conta sem preferência de idioma — ver o cabeçalho. */
+async function devolverIdiomaDoManager(creds: Creds): Promise<void> {
+  const id = creds.users.manager?.id;
+  if (!id) throw new Error(".e2e-creds.json sem o usuário `manager`");
+  const { data, error: lerErr } = await admin.auth.admin.getUserById(id);
+  if (lerErr) throw new Error(`ler o manager para devolver o idioma: ${lerErr.message}`);
+  const { error } = await admin.auth.admin.updateUserById(id, {
+    user_metadata: { ...data.user.user_metadata, locale: null },
+  });
+  if (error) throw new Error(`devolver o idioma do manager: ${error.message}`);
+}
+
 async function main(): Promise<void> {
   const creds = lerCreds();
+  await devolverIdiomaDoManager(creds);
   const semVersaoNova = process.env.E2E_SKILL_SEM_VERSAO_NOVA === "1";
 
   // (1) e (3) — as duas versões de PLATAFORMA; o ponteiro de catálogo fica na NOVA.

@@ -135,6 +135,14 @@ async function trocarParaEspanhol(page: import("@playwright/test").Page): Promis
   await expect(page.getByTestId("seletor-de-idioma")).toHaveText("ES");
 }
 
+// Devolve o cenário E o idioma do `manager` mesmo quando o caso reprova no meio:
+// a troca para espanhol fica gravada no usuário compartilhado, e as specs
+// seguintes com o `manager` a herdariam. O seed é quem devolve (ver o cabeçalho
+// de `scripts/seed-e2e-skill-versao-nova.ts`).
+test.afterAll(() => {
+  semear();
+});
+
 test("o painel de Skills avisa da versão nova do catálogo em pt-BR e em es, e o aviso some ao adotar", async ({
   page,
 }) => {
