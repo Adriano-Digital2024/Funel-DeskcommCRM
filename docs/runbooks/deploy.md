@@ -35,7 +35,7 @@ está no ar, saudável, e inalcançável.
 responde **`503`** com o corpo `no available server` (é a rota "catchall" do
 Coolify), e no `http`, `404`. Medido em 07/10/2026
 ([`evidence/2026-10-07-coolify-consumo/`](../../evidence/2026-10-07-coolify-consumo/README.md),
-`21b-coolify-503-catchall.txt`); quem procura só o `404` conclui que o roteamento
+`21b-coolify-503-catchall.txt` traz os códigos, `47-g3-remocao.txt` o corpo); quem procura só o `404` conclui que o roteamento
 está bom.
 
 ---
