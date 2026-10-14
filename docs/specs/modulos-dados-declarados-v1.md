@@ -60,7 +60,7 @@ declarativo continua exigindo `{"mode": "none"}`; o perfil de dados usa:
       { "slug": "dente",    "tipo": "inteiro", "obrigatorio": true },
       { "slug": "valor",    "tipo": "dinheiro" },          // vira valor_cents bigint + valor_moeda
       { "slug": "laudo",    "tipo": "texto_longo" },
-      { "slug": "feito_em", "tipo": "data" }
+      { "slug": "feito-em", "tipo": "data" }
     ],
     "refs": [{ "slug": "paciente", "entidade": "contato", "obrigatorio": true, "ao_apagar": "cascata" }]
   }]
@@ -120,9 +120,9 @@ módulo **descreve**, não desenha:
   "rotulo": { "pt-BR": "Odontograma" },
   "objeto": "odontograma",
   "vista": "lista",                        // lista | ficha | calendario | quadro | galeria
-  "colunas": ["paciente", "dente", "feito_em"],
-  "filtros": ["feito_em"],
-  "ordem": [["feito_em", "desc"]],
+  "colunas": ["paciente", "dente", "feito-em"],
+  "filtros": ["feito-em"],
+  "ordem": [["feito-em", "desc"]],
   "acoes": ["criar", "editar", "remover"]
 }],
 "paineis": [{ "slot": "contato.lateral", "objeto": "odontograma", "vista": "lista", "colunas": ["dente"] }]
@@ -178,7 +178,7 @@ Ordem do que ela faz hoje, e a razão de cada passo:
 1. **Validar** — o vocabulário fechado é conferido no serviço (Zod) e de novo no banco; o que o banco
    não conhece levanta (`modulo_tipo_de_campo_desconhecido`, `modulo_entidade_desconhecida`,
    `modulo_acao_ao_apagar_nao_suportada`).
-2. **Construir o nome**: `m_<publicador>_<modulo>_<objeto>`, com `-` virando `_`. Todo identificador
+2. **Construir o nome**: `m_<publicador>_<modulo>_<objeto>`, com `-` virando `_` **no publicador e no módulo**; o slug do **objeto** entra como está (pode ter `-`, que o validador aceita: `^[a-z0-9]+(?:-[a-z0-9]+)*$`). Todo identificador
    passa por `format(%I)`; nada do JSON entra como texto cru.
 3. **Criar a tabela** (`create table if not exists`) com `id`, `organization_id` com FK para
    `organizations`, as colunas declaradas, as FKs **compostas por organização** — a checagem de FK
@@ -276,8 +276,8 @@ grep -n 'create trigger trg_lgpd_secoes_de_modulo' -A4 supabase/baseline.sql
   módulo de dados **hoje não são anonimizados** quando o contato é. (Apagar o contato apaga as fichas,
   pela FK `cascata`; anonimizar não apaga.) A correção é o compilador registrar a seção dos campos
   `pessoal` no mesmo passo em que cria a tabela;
-- **limite de nome:** `modulo_secoes_lgpd.tabela` aceita no máximo 41 caracteres
-  (`^[a-z][a-z0-9_]{1,40}$`), menos que os 63 que `m_<pub>_<mod>_<obj>` pode alcançar. Ou o
+- **limite de nome:** `modulo_secoes_lgpd.tabela` aceita no máximo 41 caracteres e **não aceita `-`**
+  (`^[a-z][a-z0-9_]{1,40}$`), menos que os 63 que `m_<pub>_<mod>_<obj>` pode alcançar — e o slug do objeto pode trazer `-`. A 1b resolve as duas coisas juntas (sanitizar e truncar, ou alargar o CHECK). Ou o
   truncamento do §3 corta em 41, ou uma migration alarga o CHECK — a escolha é feita junto com o
   truncamento;
 - **export** que não conseguir ler uma seção de módulo marca o resultado como **parcial**, nunca como

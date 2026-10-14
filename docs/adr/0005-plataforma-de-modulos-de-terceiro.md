@@ -150,7 +150,7 @@ Regras que a compilação cumpre — e o estado de cada uma em 14/10:
 | Regra | Estado |
 |---|---|
 | Função `security definer`, só de `service_role`, sem SQL vindo de quem chama | **construída** (0611; `revoke … from public, anon, authenticated`) |
-| Nome por prefixo: `m_<publicador>_<modulo>_<objeto>`, com `-` virando `_` | **construída** |
+| Nome por prefixo: `m_<publicador>_<modulo>_<objeto>`, com `-` virando `_` no publicador e no módulo (o slug do objeto entra como está) | **construída** |
 | Nome truncado com sufixo de hash para caber em 63 bytes (`NAMEDATALEN`), colunas reservadas recusadas, conferência de quem é dono da tabela antes de criar | **falta** (o truncamento está listado como pendente no cabeçalho da 0611) |
 | **Tabela de módulo é server-only:** `revoke` de `anon`/`authenticated` **antes** de `fn_proteger_modulo_provisionado()` | **construída** — o código cita esta regra como "a ordem da ADR-0005 D3" |
 | **FK composta por organização** — a checagem de FK ignora RLS e aceitaria id de outra organização | **construída** para `contato` (índice único `(organization_id, id)` em `contacts`, criado no caminho do schema) |
@@ -398,7 +398,7 @@ atualização do núcleo hoje não o toca.
    reescrever a função de cascata. O que falta é o **compilador registrar** as seções dos campos
    `pessoal` ali. Até isso entrar, os campos pessoais de um módulo de dados **não são anonimizados** —
    lacuna aberta da onda 1. E há um limite a resolver junto: `modulo_secoes_lgpd.tabela` aceita no
-   máximo 41 caracteres (`^[a-z][a-z0-9_]{1,40}$`), menos que os 63 que o nome `m_<pub>_<mod>_<obj>`
+   máximo 41 caracteres e não aceita `-` (`^[a-z][a-z0-9_]{1,40}$`), menos que os 63 que o nome `m_<pub>_<mod>_<obj>`
    pode alcançar; ou o truncamento cabe em 41, ou uma migration alarga o CHECK.
 
    ```bash
