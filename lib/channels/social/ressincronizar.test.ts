@@ -239,6 +239,11 @@ it("desligada JÁ na origem atual: recusa com a frase do connect, sem PUT", asyn
 it.each([
   "O provedor não confirmou o novo endereço do webhook.",
   "O webhook foi desativado pelo provedor. Reative-o após corrigir a falha.",
+  "Não há assinatura de webhook para ressincronizar.",
+  "Nenhum canal social para ressincronizar.",
+  "Não foi possível ler o canal para ressincronizar o webhook.",
+  "Configure a integração primeiro.",
+  "Não foi possível recuperar a assinatura da conexão.",
 ])("a recusa %j tem espanhol no dicionário", (frase) => {
   expect(DICIONARIO[frase]?.es).toBeTruthy();
 });
