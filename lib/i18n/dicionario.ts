@@ -9082,6 +9082,7 @@ export const DICIONARIO: Traducoes = {
   "Ações do lead": { es: "Acciones del lead" },
   "Marcar como ganho": { es: "Marcar como ganado" },
   "Marcar como perdido": { es: "Marcar como perdido" },
+  "Marcar como perdido…": { es: "Marcar como perdido…" },
   "Probabilidade recalculada automaticamente": { es: "Probabilidad recalculada automáticamente" },
   "Dados do negócio": { es: "Datos del negocio" },
   "Carregando a linha do tempo…": { es: "Cargando la línea de tiempo…" },
