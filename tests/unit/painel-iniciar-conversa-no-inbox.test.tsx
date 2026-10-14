@@ -32,6 +32,8 @@ const postMock = vi.hoisted(() => vi.fn());
 const pushMock = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
 const podeMock = vi.hoisted(() => vi.fn(() => true));
+const toastInfo = vi.hoisted(() => vi.fn());
+const showApiErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
@@ -44,16 +46,21 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 vi.mock("sonner", () => ({
-  toast: { error: toastError, success: vi.fn(), info: vi.fn() },
+  toast: { error: toastError, success: vi.fn(), info: toastInfo },
 }));
+vi.mock("@/components/feedback/ApiErrorToast", () => ({ showApiError: showApiErrorMock }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (texto: string) => texto }));
-vi.mock("@/hooks/auth/AuthProvider", () => ({ usePermission: () => podeMock() }));
+vi.mock("@/hooks/auth/AuthProvider", () => ({
+  usePermission: () => podeMock(),
+  useAuth: () => ({ user: { id: "eu" } }),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 import type { ChannelSession } from "@/hooks/channels/useChannelSessions";
 import { BotaoIniciarConversa } from "@/components/inbox/PainelIniciarConversa";
+import { ApiError } from "@/lib/api/types";
 
 const fetchMock = vi.fn();
 
@@ -131,6 +138,8 @@ beforeEach(() => {
   postMock.mockReset();
   pushMock.mockReset();
   toastError.mockReset();
+  toastInfo.mockReset();
+  showApiErrorMock.mockReset();
   podeMock.mockReset();
   podeMock.mockReturnValue(true);
   fetchMock.mockReset();
@@ -246,6 +255,48 @@ describe("Painel Iniciar conversa no Inbox (#2813)", () => {
     );
     expect(cliquesDoPost()).toHaveLength(2);
     expect(pushMock).toHaveBeenCalledWith("/app/inbox?id=conv-9");
+  });
+
+  it("claim recusado por outro motivo que não 409: a primeira mensagem NÃO sai e o erro aparece", async () => {
+    lerCanaisE([canal({ id: "canal-numero", display_name: "Peças", phone_number: "+5511999990001" })], []);
+    const recusa = new ApiError(500, "internal_error", undefined, "req-1");
+    postMock.mockImplementation(async (caminho: string) => {
+      if (caminho.endsWith("/claim")) throw recusa;
+      return { data: {} };
+    });
+
+    await abrirComTelefone("(11) 99999-0001");
+    fireEvent.change(screen.getByLabelText("Primeira mensagem"), { target: { value: "Oi" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar conversa" }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/app/inbox?id=conv-9"));
+    expect(showApiErrorMock).toHaveBeenCalledWith(recusa);
+    expect(cliquesDoPost().map(([caminho]) => caminho)).toEqual(["/api/v1/conversations/conv-9/claim"]);
+  });
+
+  it("409 com a conversa de OUTRO atendente: a primeira mensagem não sai e o dono é nomeado", async () => {
+    lerCanaisE([canal({ id: "canal-numero", display_name: "Peças", phone_number: "+5511999990001" })], []);
+    const conflito = new ApiError(409, "state_conflict", undefined, "req-2");
+    postMock.mockImplementation(async (caminho: string) => {
+      if (caminho.endsWith("/claim")) throw conflito;
+      return { data: {} };
+    });
+    const leituraDeCanais = getMock.getMockImplementation();
+    getMock.mockImplementation(async (caminho: string) => {
+      if (caminho === "/api/v1/conversations/conv-9") {
+        return { data: { assigned_to_user_id: "outra", assigned_to_user_name: "Ana" } };
+      }
+      return leituraDeCanais?.(caminho);
+    });
+
+    await abrirComTelefone("(11) 99999-0001");
+    fireEvent.change(screen.getByLabelText("Primeira mensagem"), { target: { value: "Oi" } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar conversa" }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/app/inbox?id=conv-9"));
+    expect(toastInfo).toHaveBeenCalledWith("A conversa neste número está com Ana.");
+    expect(showApiErrorMock).not.toHaveBeenCalled();
+    expect(cliquesDoPost().map(([caminho]) => caminho)).toEqual(["/api/v1/conversations/conv-9/claim"]);
   });
 
   it("quem não pode atender não vê o botão", () => {

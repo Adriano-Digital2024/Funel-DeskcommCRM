@@ -30,13 +30,10 @@
  *
  * ─── O telefone digitado ────────────────────────────────────────────────────
  *
- * `normalizePhoneBR` (`lib/webhooks/inbound.ts`) é a régua do produto para o
- * telefone que chega de fora: DDD + número ganha `+55`, o celular ganha o nono
- * dígito, quem veio com `+` passa direto. Ela não é importada aqui por um
- * motivo técnico, e não por preferência: aquele módulo carrega `node:crypto`
- * (HMAC da assinatura de captação) e este é um componente de CLIENTE. O que
- * `telefoneDigitadoEmE164` faz é a mesma tabela de decisão, delegando ao
- * `canonicalPhoneBR` — a mesma função que a régua de lá usa no fim.
+ * `normalizePhoneBR` (`lib/channels/phone-variants.ts`) é a régua do produto
+ * para o telefone que chega de fora: DDD + número ganha `+55`, o celular ganha
+ * o nono dígito, quem veio com `+` passa direto. A mesma função lê o CSV de
+ * contatos e o webhook de captação.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -67,40 +64,18 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api/client";
-import { canonicalPhoneBR, phoneForDisplay, samePhone } from "@/lib/channels/phone-variants";
+import { ApiError } from "@/lib/api/types";
+import { showApiError } from "@/components/feedback/ApiErrorToast";
+import { normalizePhoneBR, phoneForDisplay, samePhone } from "@/lib/channels/phone-variants";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { ChatCircle, UserCircle, Users } from "@/lib/ui/icons";
-import { usePermission } from "@/hooks/auth/AuthProvider";
+import { useAuth, usePermission } from "@/hooks/auth/AuthProvider";
+import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 import { useContactList } from "@/hooks/contacts/useContactList";
 import { useT } from "@/hooks/i18n/useT";
 import { useMessageTemplates } from "@/hooks/inbox/useMessageTemplates";
 import type { Contact } from "@/lib/types/contacts";
 import { cn } from "@/lib/utils";
-
-/**
- * O telefone DIGITADO à mão, em E.164 — a mesma tabela de decisão de
- * `normalizePhoneBR` (`lib/webhooks/inbound.ts`), sem as partes que aquele
- * módulo precisa para assinar payload de captação.
- *
- * `null` é resposta legítima: "isto ainda não é um telefone". Quem chama usa
- * isso para decidir se o botão de confirmar existe.
- */
-export function telefoneDigitadoEmE164(bruto: string): string | null {
-  const texto = bruto.trim();
-  if (!texto) return null;
-  const digitos = texto.replace(/\D/g, "");
-  // Quem digitou o `+` declarou o DDI: não se adivinha país por cima.
-  if (texto.startsWith("+")) {
-    return /^\d{8,15}$/.test(digitos) ? canonicalPhoneBR(`+${digitos}`) : null;
-  }
-  // `55` + DDD + número, sem o `+`.
-  if (digitos.length === 12 || digitos.length === 13) {
-    return digitos.startsWith("55") ? canonicalPhoneBR(`+${digitos}`) : null;
-  }
-  // Formato brasileiro local: 10 (fixo) ou 11 (celular) dígitos.
-  if (digitos.length === 10 || digitos.length === 11) return canonicalPhoneBR(`+55${digitos}`);
-  return null;
-}
 
 /** Sinônimos do gatilho de modelo de mensagem, que não tem `children` de texto. */
 const SEM_MODELO = "__sem-modelo__";
@@ -149,7 +124,7 @@ function CorpoDoPainel({
     [busca.data],
   );
 
-  const telefone = telefoneDigitadoEmE164(termo);
+  const telefone = normalizePhoneBR(termo);
 
   /**
    * O número digitado já é de alguém da base? Então a ficha é DELA.
@@ -326,6 +301,7 @@ export function IniciarConversaDialog({
   const t = useT();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
   /** A primeira mensagem, lida no `aoAbrir` — quando a conversa já existe. */
   const primeiraMensagem = useRef("");
 
@@ -339,16 +315,39 @@ export function IniciarConversaDialog({
        * reaberta já tinha dono: aí não se rouba atendimento de ninguém, e a
        * conversa segue aberta na tela.
        */
+      let assumiu = true;
       try {
         await apiClient.post(`/api/v1/conversations/${conversationId}/claim`, {
           expected_assignee: null,
         });
-      } catch {
-        /* já tinha dono — a conversa abriu, e seguir é o certo. */
+      } catch (err) {
+        // Só o 409 é "já tinha dono" — e o dono pode ser você (a conversa
+        // fechada reabre com o dono antigo). Qualquer outra recusa (papel,
+        // servidor, rede) deixa a conversa SEM dono e com o bot ligado. Nos
+        // dois casos sem dono seu, a primeira mensagem não sai: não se fala
+        // na conversa de outro atendente, nem numa que a IA ainda atende.
+        // Mesma régua de `useContinuarPorOutroNumero`.
+        if (!(err instanceof ApiError && err.status === 409)) {
+          assumiu = false;
+          showApiError(err);
+        } else {
+          const conversa = await apiClient
+            .get<{ data: ConversationWithContact }>(`/api/v1/conversations/${conversationId}`)
+            .then((r) => r.data)
+            .catch(() => null);
+          assumiu = conversa?.assigned_to_user_id === user.id;
+          if (!assumiu) {
+            toast.info(
+              `${t("A conversa neste número está com")} ${
+                conversa?.assigned_to_user_name ?? t("outro atendente")
+              }.`,
+            );
+          }
+        }
       }
 
       const texto = primeiraMensagem.current.trim();
-      if (texto) {
+      if (texto && assumiu) {
         try {
           await apiClient.post("/api/v1/messages", { conversation_id: conversationId, body: texto });
         } catch {
