@@ -1154,7 +1154,7 @@ build_local_permitido() {  # build_local_permitido <versão alvo>
 # O update.sh já separava isso no preflight (`preflight_atualizacao`); o
 # install.sh citava "o registro de imagens não respondeu" para tudo, e o dono
 # de uma VPS cuja rede está boa ia mexer na rede à toa enquanto o que faltava
-# era o pacote docker-buildx-plugin.
+# era o plugin buildx.
 #
 # A ordem espelha o portão: primeiro a proibição explícita (que dispensa
 # sondar), depois o buildx (sem ele a sonda forçaria o veredito errado), e só
