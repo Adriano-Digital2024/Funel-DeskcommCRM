@@ -4692,6 +4692,13 @@ GRANT ALL ON TABLE "public"."lgpd_requests" TO "anon";
 GRANT ALL ON TABLE "public"."lgpd_requests" TO "authenticated";
 GRANT ALL ON TABLE "public"."lgpd_requests" TO "service_role";
 
+-- I/U/D/T de `anon` e `authenticated` saem junto dos grants (migration 0672):
+-- a escrita em `lgpd_requests` é do servidor — o pedido nasce do webhook e muda
+-- de estado pelos workers e pela aprovação, todos com a chave de serviço. Colada
+-- no grant para a chave anon não recuperar a escrita até o bloco do apêndice a
+-- cada passada (o mesmo desenho de `ai_budgets`). O bloco da 0672 repete a linha.
+revoke insert, update, delete, truncate on table public.lgpd_requests from authenticated, anon;
+
 
 
 GRANT ALL ON TABLE "public"."merge_queue" TO "anon";
