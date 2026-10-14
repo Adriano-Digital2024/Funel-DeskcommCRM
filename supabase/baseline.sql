@@ -51972,7 +51972,7 @@ $fn$;
 -- O gatilho `contact.phone_added` (#2812) é emitido pelo PATCH de contatos,
 -- mas a tabela `(tipo, entidade) → contato` não o conhecia: o evento nascia
 -- sem `service_origin` e `fn_service_event_origin` o recusava com
--- `service_event_origin_unsupported` (40001). Uma regra "ganhou telefone →
+-- `service_event_origin_unsupported` (`PT409`). Uma regra "ganhou telefone →
 -- enviar WhatsApp" terminava `failed` com `service_boundary_stale` — o mesmo
 -- defeito que a 0551 consertou para o aniversário (#2326). O tipo entra no
 -- ramo de contato, e o `emit_event` o reserva ao servidor como o aniversário.

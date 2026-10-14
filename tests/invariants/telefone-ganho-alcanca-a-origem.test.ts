@@ -9,7 +9,7 @@ import { motivoDoErro } from "./psql-transporte";
  * O PATCH de contatos emite o evento pelo admin client, sem `service_origin`.
  * Sem o tipo em `fn_service_event_contact`, o `emit_event` não carimbava a
  * origem e `fn_service_event_origin` o recusava com
- * `service_event_origin_unsupported` (40001): a regra "ganhou telefone →
+ * `service_event_origin_unsupported` (`PT409`): a regra "ganhou telefone →
  * enviar WhatsApp" terminava `failed` com `service_boundary_stale` — o mesmo
  * defeito da #2326 (0551). E, como o aniversário, o tipo é do servidor: um
  * viewer não o emite.
@@ -42,7 +42,7 @@ describe("0670 — contact.phone_added alcança a origem (#2812)", () => {
       "o emit_event não carimbou service_origin",
     ).toBe("true");
 
-    // Sem o conserto: service_event_origin_unsupported (40001).
+    // Sem o conserto: service_event_origin_unsupported (PT409).
     const fronteira = JSON.parse(
       lastLine(
         sql(`select public.fn_service_event_origin('${GOV_ORG}'::uuid, '${eventoId}'::uuid,
