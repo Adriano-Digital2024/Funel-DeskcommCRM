@@ -80,7 +80,6 @@ const TETO_DA_LISTA = 500;
  * EXATAMENTE as chaves de `PALETA_DE_ETIQUETAS`.
  */
 
-/** Cada recusa do servidor vira uma frase que diz O QUE FAZER. */
 /**
  * ONDE O NOME DE UMA ETIQUETA ESTÁ EM CACHE no cliente — e por isso precisa ser
  * relido depois de renomear, juntar ou excluir. Prefixos: invalidar `["contact"]`
@@ -100,6 +99,7 @@ export const CHAVES_COM_NOME_DE_ETIQUETA = [
   ["board"],
 ] as const;
 
+/** Cada recusa do servidor vira uma frase que diz O QUE FAZER. */
 const ERRO_EM_PORTUGUES: Record<string, string> = {
   validation_failed: "Confira a etiqueta, o novo nome e a cor.",
   forbidden: "Só um gerente ou administrador da organização pode mudar as etiquetas.",

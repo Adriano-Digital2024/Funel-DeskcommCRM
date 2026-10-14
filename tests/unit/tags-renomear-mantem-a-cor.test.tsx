@@ -100,7 +100,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function montar() {
+function montar(tags: LinhaDeVocabulario[] = [OBRA]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   invalidadas = vi.spyOn(client, "invalidateQueries");
   render(
@@ -109,7 +109,7 @@ function montar() {
         {/* O chip da LISTA, com o nome que o contato vai ter depois do rename.
             Ele é quem lê o mapa — é ele que fica cinza sem a invalidação. */}
         <ChipDeEtiqueta tag="obra-nova" />
-        <PainelDeTags tags={[OBRA]} idioma="pt-BR" />
+        <PainelDeTags tags={tags} idioma="pt-BR" />
       </ProvedorDeCoresDasEtiquetas>
     </QueryClientProvider>,
   );
@@ -163,11 +163,15 @@ describe("renomear/juntar/excluir relê todo cache que guarda o nome da etiqueta
   const chavesInvalidadas = () =>
     invalidadas.mock.calls.map(([filtro]) => JSON.stringify(filtro?.queryKey));
 
-  it.each(["Renomear", "Excluir"])("%s invalida conversas, contatos, vocabulários e funil", async (botao) => {
-    montar();
-    fireEvent.click(screen.getByRole("button", { name: botao }));
+  it.each(["Renomear", "Juntar", "Excluir"])("%s invalida conversas, contatos, vocabulários e funil", async (botao) => {
+    // `juntar` precisa de um destino existente na lista.
+    montar([OBRA, { ...OBRA, tag: "casa", cor: null }]);
+    fireEvent.click(screen.getAllByRole("button", { name: botao })[0]!);
     if (botao === "Renomear") {
       fireEvent.change(screen.getByLabelText("Novo nome"), { target: { value: "obra-nova" } });
+    }
+    if (botao === "Juntar") {
+      fireEvent.change(screen.getByLabelText("Etiqueta de destino"), { target: { value: "casa" } });
     }
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
