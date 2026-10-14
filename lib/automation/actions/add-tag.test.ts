@@ -138,4 +138,11 @@ describe("add_tag junta com as etiquetas gravadas", () => {
     expect(r.status).toBe("skipped");expect(gravacoes).toHaveLength(0);expect(eventos).toHaveLength(0);
   });
 
+  it("a foto do contexto passa a carregar o que foi gravado", async () => {
+    const { admin } = banco({ "lead-1": ["atual"] });
+    const context = { lead: { id: "lead-1", tags: [] as string[] } };
+    await addTag().execute(ctx(admin, context, "r"), { tags: ["nova"] });
+
+    expect(context.lead.tags).toEqual(["atual", "nova"]);
+  });
 });
