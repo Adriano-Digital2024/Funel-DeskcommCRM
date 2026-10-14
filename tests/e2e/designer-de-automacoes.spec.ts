@@ -81,7 +81,12 @@ test.describe("designer de automações", () => {
 
       // ── QUANDO: a trava de laço vale aqui como vale no editor em lista ───
       await page.getByTestId("caixa-gatilho").click();
+      // No ganho, mover o lead é a porta do pós-venda (#2769) e fica livre;
+      // atribuir responsável segue travado. No perdido, os dois travam (#1528).
       await escolher(page, "O que dispara a automação", "Quando um negócio for ganho");
+      await expect(page.getByTestId("paleta-create_or_move_lead")).toBeEnabled();
+      await expect(page.getByTestId("paleta-assign_owner")).toBeDisabled();
+      await escolher(page, "O que dispara a automação", "Quando um negócio for perdido");
       await expect(page.getByTestId("paleta-create_or_move_lead")).toBeDisabled();
       await expect(page.getByTestId("paleta-assign_owner")).toBeDisabled();
       await escolher(page, "O que dispara a automação", "Quando um lead ganhar uma tag");
