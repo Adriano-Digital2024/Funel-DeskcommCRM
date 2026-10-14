@@ -241,13 +241,30 @@ const acoesFixas = [
     type: z.literal("send_email"),
     config: z.object({
       destinatario: z.enum(["contato", "dono_do_lead", "fixo"]),
-      email_fixo: z.string().email().max(320).optional(),
+      // O editor guarda o campo como "" (input controlado) quando o modo não
+      // é `fixo`; "" vira AUSÊNCIA aqui, na porta que o editor e a API
+      // dividem, e não um e-mail inválido. Quem EXIGE o endereço é o
+      // `superRefine` abaixo — só no modo `fixo`.
+      email_fixo: z.preprocess(
+        (v) => (v === "" ? undefined : v),
+        z.string().email("E-mail inválido").max(320).optional(),
+      ),
       // Assunto e corpo levam as MESMAS variáveis do WhatsApp: `{{nome}}`,
       // `{{primeiro_nome}}`, `{{lead.*}}` e o campo do funil (`{{destino}}`).
       assunto: z.string().min(1).max(200),
       corpo: z.string().min(1).max(5000),
       // Texto simples (padrão) ou HTML simples — negrito, links e quebras.
       formato: z.enum(["texto", "html"]).optional(),
+    }).superRefine((config, ctx) => {
+      // Sem isto, `fixo` sem endereço salvaria e só falharia na execução
+      // (`missing_config` em send-email.ts) — a regra "salva" que nunca envia.
+      if (config.destinatario === "fixo" && !config.email_fixo) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["email_fixo"],
+          message: "Informe o endereço de e-mail que recebe os envios desta regra.",
+        });
+      }
     }),
   }),
   z.object({

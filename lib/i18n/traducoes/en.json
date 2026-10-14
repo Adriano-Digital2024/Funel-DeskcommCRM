@@ -9088,5 +9088,6 @@
   "O servidor de e-mail recusou a mensagem. O detalhe técnico abaixo traz o motivo que o provedor devolveu.": "The mail server rejected the message. The technical detail below carries the reason the provider returned.",
   "O provedor de e-mail limitou os envios por causa do volume. Tente de novo mais tarde.": "The email provider capped sending because of volume. Try again later.",
   "O servidor recusou o endereço de quem envia. Confira o remetente em Admin › E-mail.": "The server rejected the sender address. Check the sender in Admin › Email.",
-  "O domínio do remetente não está verificado na Resend. Verifique o domínio na conta Resend e tente de novo.": "The sender domain is not verified on Resend. Verify the domain in the Resend account and try again."
+  "O domínio do remetente não está verificado na Resend. Verifique o domínio na conta Resend e tente de novo.": "The sender domain is not verified on Resend. Verify the domain in the Resend account and try again.",
+  "Informe o endereço de e-mail que recebe os envios desta regra.": "Enter the email address that receives this rule's sends."
 }

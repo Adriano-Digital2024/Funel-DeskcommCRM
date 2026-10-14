@@ -9,7 +9,12 @@
  *   2. `defaultActionConfig` nasce com a MESMA forma que o schema exige;
  *   3. `ActionConfigForm` TEM o caso: o rótulo do destinatário renderiza, e
  *      escolher "Endereço fixo" revela o campo do endereço;
- *   4. o que a pessoa escreve chega na regra pelo `onChange`.
+ *   4. o que a pessoa escreve chega na regra pelo `onChange`;
+ *   5. o que o editor PRODUZ passa no `createAutomationRuleSchema` — o mesmo
+ *      `safeParse` que o RuleEditor roda antes do POST e que a API roda na
+ *      porta. Sem este caso, o item 2 comparava o default consigo mesmo e a
+ *      prova de tela achou o furo: com "E-mail do contato" o salvar morria em
+ *      "Invalid email address", porque o default nasce com `email_fixo: ""`.
  *
  * A execução (destinatário e variáveis resolvidos, falha com motivo) vive em
  * `lib/automation/actions/send-email.test.ts`.
@@ -25,6 +30,7 @@ vi.mock("@/lib/api/client", () => ({
 
 import { ACTION_LABELS, type ActionType } from "@/app/app/webhooks/_components/labels";
 import { apiClient } from "@/lib/api/client";
+import { createAutomationRuleSchema, updateAutomationRuleSchema } from "@/lib/schemas/webhooks";
 import {
   ActionConfigForm,
   defaultActionConfig,
@@ -81,7 +87,7 @@ describe("labels.ts nomeia send_email", () => {
 describe("ActionConfigForm: o formulário do e-mail", () => {
   beforeEach(() => vi.mocked(apiClient.get).mockReset());
 
-  it("defaultActionConfig nasce com a mesma forma que o schema exige", () => {
+  it("defaultActionConfig nasce com destinatário Contato e o endereço fixo vazio", () => {
     expect(defaultActionConfig("send_email")).toEqual({
       type: "send_email",
       config: { destinatario: "contato", email_fixo: "", assunto: "", corpo: "", formato: "texto" },
@@ -121,5 +127,62 @@ describe("ActionConfigForm: o formulário do e-mail", () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ config: expect.objectContaining({ assunto: "Seu voucher" }) }),
     );
+  });
+});
+
+/**
+ * O contrato REAL: o que o editor produz, passado pelo mesmo `safeParse` que
+ * o RuleEditor roda antes do POST (e que as rotas POST/PATCH rodam na porta).
+ * A ação parte do `defaultActionConfig` — com o `email_fixo: ""` que o campo
+ * controlado precisa — e recebe só o que a pessoa digita.
+ */
+function regraComEmail(config: Partial<Extract<ActionItem, { type: "send_email" }>["config"]>) {
+  const base = defaultActionConfig("send_email");
+  if (base.type !== "send_email") throw new Error("defaultActionConfig mudou de tipo");
+  return {
+    name: "Voucher por e-mail",
+    trigger_event: "lead.created",
+    conditions: [],
+    actions: [{ type: "send_email", config: { ...base.config, assunto: "Seu voucher", corpo: "Olá {{nome}}", ...config } }],
+    trigger_config: {},
+  };
+}
+
+describe("o que o editor produz passa no schema da regra", () => {
+  it.each(["contato", "dono_do_lead"] as const)(
+    "destinatário %s salva com o endereço fixo vazio (e não grava o vazio)",
+    (destinatario) => {
+      const r = createAutomationRuleSchema.safeParse(regraComEmail({ destinatario }));
+      expect(r.success, JSON.stringify(r.error?.issues)).toBe(true);
+      // `undefined` some no JSON do POST: o "" não chega a ser gravado.
+      expect(JSON.parse(JSON.stringify(r.data?.actions[0]?.config))).not.toHaveProperty("email_fixo");
+      // A edição (PATCH) passa pelo mesmo trecho do schema.
+      const u = updateAutomationRuleSchema.safeParse(regraComEmail({ destinatario }));
+      expect(u.success, JSON.stringify(u.error?.issues)).toBe(true);
+    },
+  );
+
+  it("endereço fixo SEM endereço é recusado na porta, com frase em português", () => {
+    const r = createAutomationRuleSchema.safeParse(regraComEmail({ destinatario: "fixo" }));
+    expect(r.success).toBe(false);
+    const issue = r.error?.issues[0];
+    expect(issue?.path).toEqual(["actions", 0, "config", "email_fixo"]);
+    expect(issue?.message).toBe("Informe o endereço de e-mail que recebe os envios desta regra.");
+  });
+
+  it("endereço fixo com endereço inválido é recusado em português", () => {
+    const r = createAutomationRuleSchema.safeParse(
+      regraComEmail({ destinatario: "fixo", email_fixo: "nao-e-email" }),
+    );
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.message).toBe("E-mail inválido");
+  });
+
+  it("endereço fixo com endereço válido salva e grava o endereço", () => {
+    const r = createAutomationRuleSchema.safeParse(
+      regraComEmail({ destinatario: "fixo", email_fixo: "vendas@agencia.com.br" }),
+    );
+    expect(r.success, JSON.stringify(r.error?.issues)).toBe(true);
+    expect(r.data?.actions[0]?.config).toMatchObject({ email_fixo: "vendas@agencia.com.br" });
   });
 });

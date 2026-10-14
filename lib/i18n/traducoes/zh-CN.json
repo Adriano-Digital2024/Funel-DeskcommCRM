@@ -5614,5 +5614,6 @@
   "O servidor de e-mail recusou a mensagem. O detalhe técnico abaixo traz o motivo que o provedor devolveu.": "邮件服务器拒收了该消息。下方技术详情给出了服务商返回的原因。",
   "O provedor de e-mail limitou os envios por causa do volume. Tente de novo mais tarde.": "邮件服务商因发送量限制了发送。请稍后再试。",
   "O servidor recusou o endereço de quem envia. Confira o remetente em Admin › E-mail.": "服务器拒绝了发件人地址。请在 Admin › E-mail 中检查发件人。",
-  "O domínio do remetente não está verificado na Resend. Verifique o domínio na conta Resend e tente de novo.": "发件域名尚未在 Resend 上验证。请在 Resend 账户中验证域名后重试。"
+  "O domínio do remetente não está verificado na Resend. Verifique o domínio na conta Resend e tente de novo.": "发件域名尚未在 Resend 上验证。请在 Resend 账户中验证域名后重试。",
+  "Informe o endereço de e-mail que recebe os envios desta regra.": "请填写接收此规则所发邮件的邮箱地址。"
 }

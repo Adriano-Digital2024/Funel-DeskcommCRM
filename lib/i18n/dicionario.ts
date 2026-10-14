@@ -6061,6 +6061,7 @@ export const DICIONARIO: Traducoes = {
   "alterado automaticamente pelo sistema": { es: "cambiado automáticamente por el sistema" },
   é: { es: "es" },
   "Revise os campos da automação.": { es: "Revisa los campos de la automatización." },
+  "Informe o endereço de e-mail que recebe os envios desta regra.": { es: "Indica la dirección de correo que recibe los envíos de esta regla." },
   "Não funcionou. Confira se a fonte está ativa e se o funil/estágio ainda existem.": {
     es: "No funcionó. Revisa que la fuente esté activa y que el embudo y la etapa sigan existiendo.",
   },
