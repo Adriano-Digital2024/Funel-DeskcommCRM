@@ -3998,6 +3998,12 @@ export const DICIONARIO: Traducoes = {
   "Os eventos só saem quando o negócio muda de etapa — pela equipe, pela IA ou por automação — e só para quem veio de anúncio da Meta. Saem sem valor: o valor vai na compra. Movimentos anteriores a ligar a regra não são enviados.": {
     es: "Los eventos solo salen cuando el negocio cambia de etapa — por el equipo, por la IA o por automatización — y solo para quien vino de un anuncio de Meta. Salen sin valor: el valor va en la compra. Los movimientos anteriores a activar la regla no se envían.",
   },
+  "Este evento não sai pelo canal da conversa. Para esta etapa, escolha um destes": {
+    es: "Este evento no sale por el canal de la conversación. Para esta etapa, elige uno de estos",
+  },
+  "ou configure a conexão direta da Meta no formulário acima.": {
+    es: "o configura la conexión directa de Meta en el formulario de arriba.",
+  },
   "Ler o valor da venda na conversa": {
     es: "Leer el valor de la venta en la conversación",
   },
@@ -9050,6 +9056,8 @@ export const DICIONARIO: Traducoes = {
   "sem responsável.": { es: "sin responsable." },
   "atribuído.": { es: "asignado." },
   "atribuídos.": { es: "asignados." },
+  "marcado como perdido.": { es: "marcado como perdido." },
+  "marcados como perdidos.": { es: "marcados como perdidos." },
   "selecionado": { es: "seleccionado" },
   "selecionados": { es: "seleccionados" },
   "Mover para…": { es: "Mover a…" },
@@ -9092,6 +9100,7 @@ export const DICIONARIO: Traducoes = {
   "Ações do lead": { es: "Acciones del lead" },
   "Marcar como ganho": { es: "Marcar como ganado" },
   "Marcar como perdido": { es: "Marcar como perdido" },
+  "Marcar como perdido…": { es: "Marcar como perdido…" },
   "Probabilidade recalculada automaticamente": { es: "Probabilidad recalculada automáticamente" },
   "Dados do negócio": { es: "Datos del negocio" },
   "Carregando a linha do tempo…": { es: "Cargando la línea de tiempo…" },
