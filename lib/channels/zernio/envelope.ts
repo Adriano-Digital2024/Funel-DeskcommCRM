@@ -18,11 +18,15 @@
  * Um campo ganha tipo quando o LEITOR o normaliza: `str()` para string, `obj()`
  * para objeto (os dois em `./webhook.ts`). É o OPOSTO da regra que este
  * cabeçalho declarava antes — reservar o tipo para o campo lido **sem guarda** —,
- * e a inversão é o ponto: nenhum leitor deste canal lê o envelope sem guarda
- * (todos recebem `unknown`), e o que a normalização faz é devolver `null` para a
- * forma errada. É justamente esse `null` que o tipo transforma em 400 nomeado:
- * `str()` sobre um `conversationId` numérico devolve `null`, o parser devolve
- * `null`, e a rota respondia 200 como se o evento não interessasse (ver o topo).
+ * e a inversão é o ponto: a normalização devolve `null` para a forma errada, e
+ * é justamente esse `null` que o tipo transforma em 400 nomeado: `str()` sobre
+ * um `conversationId` numérico devolve `null`, o parser devolve `null`, e a
+ * rota respondia 200 como se o evento não interessasse (ver o topo).
+ *
+ * O tipo também segura quem lê o envelope JÁ VALIDADO, sem conferir a forma:
+ * `../inbound.ts` chama `payload.event?.startsWith(...)` e lê
+ * `payload.number?.phoneNumber` confiando no schema. Afrouxar `event` ou
+ * `number` aqui quebra o typecheck ali — e é para quebrar.
  *
  * Sem tipo (o leitor aceita qualquer forma): `attachments`.
  *
