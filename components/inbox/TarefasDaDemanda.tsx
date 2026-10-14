@@ -40,6 +40,23 @@ interface Props {
  * atendimento. A régua de "aberto" é a mesma da tela, via `useTasks`.
  */
 export function TarefasDaDemanda({ demandaId, contactId, leadId, podeEditar }: Props) {
+  // O guarda vem ANTES dos hooks, de propósito: o painel do inbox desenha esta
+  // seção em TODA conversa, e a maioria não tem demanda vigente. Montar
+  // `useUser`/`useTasks` no vazio obrigaria toda tela que renderiza o painel —
+  // e todo teste que não tem demanda — a carregar um provedor de autenticação e
+  // um fetch que a seção nem usa. Sem demanda, nada disto existe.
+  if (!demandaId) return null;
+  return (
+    <SecaoDeTarefasDaDemanda
+      demandaId={demandaId}
+      contactId={contactId}
+      leadId={leadId}
+      podeEditar={podeEditar}
+    />
+  );
+}
+
+function SecaoDeTarefasDaDemanda({ demandaId, contactId, leadId, podeEditar }: Props & { demandaId: string }) {
   const t = useT();
   const usuario = useUser();
   const [formAberto, setFormAberto] = useState(false);
@@ -49,8 +66,8 @@ export function TarefasDaDemanda({ demandaId, contactId, leadId, podeEditar }: P
 
   const { tarefas, carregando, falhou, criarTarefa, editarTarefa, apagarTarefa, alternarConcluida } =
     useTasks(
-      { demanda_id: demandaId ?? undefined, aberto: true },
-      { enabled: Boolean(demandaId) },
+      { demanda_id: demandaId, aberto: true },
+      { enabled: true },
     );
 
   const resumo = resumoDasTarefas(tarefas);
@@ -71,8 +88,6 @@ export function TarefasDaDemanda({ demandaId, contactId, leadId, podeEditar }: P
     if (emEdicao) await editarTarefa(emEdicao.id, entrada);
     else await criarTarefa(entrada);
   }
-
-  if (!demandaId) return null;
 
   return (
     <section data-testid="inbox-tarefas-da-demanda">

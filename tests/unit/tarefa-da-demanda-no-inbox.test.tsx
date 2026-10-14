@@ -121,11 +121,10 @@ describe("TarefasDaDemanda — a seção do inbox", () => {
   it("sem demanda vigente no canal, a seção não desenha nada", () => {
     const { container } = render(<TarefasDaDemanda demandaId={null} contactId="c-1" podeEditar />);
     expect(container.firstChild).toBeNull();
-    // E nem consulta: não há demanda para filtrar.
-    expect(tarefasHook.chamadas.at(-1)).toEqual([
-      { demanda_id: undefined, aberto: true },
-      { enabled: false },
-    ]);
+    // E nem monta a consulta: o guarda de `demandaId` vem ANTES dos hooks, então
+    // o `useTasks` não é chamado nenhuma vez — não há demanda para filtrar nem
+    // provedor de autenticação a exigir.
+    expect(tarefasHook.chamadas).toHaveLength(0);
   });
 
   it("a tarefa da demanda aparece na lista, com o prazo que a régua da tela mostra", () => {
