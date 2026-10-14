@@ -7,9 +7,11 @@ import { BulkActionBar } from "./BulkActionBar";
 const get = vi.hoisted(() => vi.fn());
 const bulkMutate = vi.hoisted(() => vi.fn());
 const bulkMutateAsync = vi.hoisted(() => vi.fn());
+const toastSuccess = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/api/client", () => ({ apiClient: { get, post: vi.fn(), patch: vi.fn() } }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (chave: string) => chave }));
+vi.mock("sonner", () => ({ toast: { success: toastSuccess, warning: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useUser: () => ({ id: "u1", is_platform_admin: false }),
   useActiveOrg: () => ({ role: "manager" }),
@@ -88,6 +90,7 @@ describe("BulkActionBar — F2 (#2484): perdido em lote", () => {
     bulkMutate.mockReset();
     bulkMutateAsync.mockReset();
     bulkMutateAsync.mockResolvedValue({ data: { updated_count: 2 } });
+    toastSuccess.mockReset();
   });
 
   function montar(stages = STAGES_COM_PERDA, onClear = vi.fn()) {
@@ -128,6 +131,9 @@ describe("BulkActionBar — F2 (#2484): perdido em lote", () => {
     // Um motivo ÚNICO aplicado ao lote inteiro: a chamada leva o motivo escolhido.
     expect(bulkMutateAsync).toHaveBeenCalledTimes(1);
     expect(onClear).toHaveBeenCalled();
+    // A confirmação de que deu certo: sem ela o lote some do quadro em silêncio
+    // (prova de tela de 14/10 — o "atribuir" em lote já avisava, o "perder" não).
+    expect(toastSuccess).toHaveBeenCalledWith("2 marcados como perdidos.");
   });
 
   it("sem motivo a ação não confirma: nenhuma escrita sai", async () => {

@@ -25,6 +25,7 @@ import { requireRole } from "@/lib/auth/require-role";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { type AuthUser, type Role } from "@/lib/auth/types";
+import { emitLeadActivity } from "@/lib/leads/activity-emitter";
 
 vi.mock("@/lib/impersonate/support", () => ({ requireSupportWrite: vi.fn(async () => null) }));
 vi.mock("@/lib/auth/require-role", () => ({ requireRole: vi.fn() }));
@@ -212,5 +213,13 @@ describe("perdido em lote (#2484 F2) respeita a organização da sessão, por it
     const corpo = (await res.json()) as { data?: { updated_count?: number } };
     // O lead de outra org NÃO é contado — não foi tocado.
     expect(corpo.data?.updated_count).toBe(1);
+    // 4) A timeline do lead perdido em lote diz o MOTIVO, na mesma frase da
+    //    perda pelo card (`/lose`) — não só "Movido de X para Perdido" (#2868).
+    expect(vi.mocked(emitLeadActivity)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(emitLeadActivity).mock.calls[0]?.[1]).toMatchObject({
+      leadId: LEAD_DA_ORG,
+      type: "stage_changed",
+      reason: "Perdido — preço alto",
+    });
   });
 });

@@ -205,11 +205,13 @@ export function BulkActionBar({
 
   const runLose = async (motivo: string) => {
     if (!etapaDePerda) return;
-    await bulk.mutateAsync({
+    const res = await bulk.mutateAsync({
       action: "move",
       lead_ids: selectedIds,
       params: { stage_id: etapaDePerda.id, lost_reason: motivo },
     });
+    const n = res.data.updated_count;
+    toast.success(`${n} ${t(n > 1 ? "marcados como perdidos." : "marcado como perdido.")}`);
     onClear();
   };
 
