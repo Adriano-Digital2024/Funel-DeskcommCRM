@@ -52,9 +52,13 @@ import { checkRateLimit, peekRateLimit } from "@/lib/ai/dispatcher/rate-limit";
  * `execute` só CONTA quando há tentativa real de envio — recusa (bloqueado,
  * sem e-mail, opt-out) não consome.
  *
- * ponytail: constante, não env — vira knob quando alguém pedir. Entre a
- * consulta e a contagem o teto pode passar por alguns envios simultâneos do
- * mesmo evento; trava atômica se isso medir errado.
+ * A consulta do `postponeUntil` sozinha NÃO segura o teto: eventos
+ * processados em paralelo passam todos pela consulta antes de qualquer um
+ * contar. Quem segura é o retorno do `checkRateLimit` no `execute` — o
+ * incremento é atômico (INCR no Redis), então só os primeiros 200 da janela
+ * saem; o resto vira `skipped` com `email_limite_atingido`.
+ *
+ * ponytail: constante, não env — vira knob quando alguém pedir.
  */
 export const LIMITE_DE_EMAILS_POR_JANELA = 200;
 export const JANELA_DO_LIMITE_SEG = 3600;
@@ -226,7 +230,13 @@ async function execute(
   // No HTML, cada valor de fora (contato, negócio) entra como texto.
   const corpoHtml = formato === "html" ? renderTemplate(corpo, ctx.context, escaparHtml) : corpoPronto;
 
-  await checkRateLimit(baldeDaOrg(ctx), LIMITE_DE_EMAILS_POR_JANELA, JANELA_DO_LIMITE_SEG);
+  // A consulta do `postponeUntil` é só o atalho; quem decide é esta contagem.
+  // `skipped`, não `postponed`: o motor não reexecuta um evento por resultado
+  // de `execute`, então "adiado" aqui diria que o e-mail ainda vai sair.
+  const teto = await checkRateLimit(baldeDaOrg(ctx), LIMITE_DE_EMAILS_POR_JANELA, JANELA_DO_LIMITE_SEG);
+  if (!teto.allowed) {
+    return { type: "send_email", status: "skipped", detail: { reason: "email_limite_atingido", destinatario } };
+  }
   const resultado = await sendEmail({
     to: para.endereco,
     subject: assuntoPronto,

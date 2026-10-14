@@ -360,6 +360,18 @@ describe("limite de envio por organização", () => {
     expect(await acao()!.postponeUntil!(daOrg("org-limite-vizinha"), FIXO)).toBeNull();
   });
 
+  it("sem a pré-checagem (eventos em paralelo), o envio mesmo segura o teto", async () => {
+    enviar.mockResolvedValue({ ok: true, id: "e-mail", via: "smtp" });
+    const c = daOrg("org-limite-paralelo");
+
+    const resultados = [];
+    for (let i = 0; i <= LIMITE_DE_EMAILS_POR_JANELA; i++) resultados.push(await acao()!.execute(c, FIXO));
+
+    expect(enviar).toHaveBeenCalledTimes(LIMITE_DE_EMAILS_POR_JANELA);
+    expect(resultados.at(-1)).toMatchObject({ status: "skipped", detail: { reason: "email_limite_atingido" } });
+    expect(resultados.filter((r) => r.status === "success")).toHaveLength(LIMITE_DE_EMAILS_POR_JANELA);
+  });
+
   it("recusa que nem tenta (contato bloqueado) não consome o orçamento", async () => {
     const bloqueado = contexto();
     (bloqueado.contact as { is_blocked: boolean }).is_blocked = true;
