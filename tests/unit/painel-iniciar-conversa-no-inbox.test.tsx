@@ -299,6 +299,26 @@ describe("Painel Iniciar conversa no Inbox (#2813)", () => {
     expect(cliquesDoPost().map(([caminho]) => caminho)).toEqual(["/api/v1/conversations/conv-9/claim"]);
   });
 
+  it("o seletor de modelo nasce mostrando o que ele faz, e não uma caixa vazia", async () => {
+    lerCanaisE([canal({ id: "canal-numero", display_name: "Peças", phone_number: "+5511999990001" })], []);
+    const leitura = getMock.getMockImplementation();
+    getMock.mockImplementation(async (caminho: string) => {
+      if (caminho.startsWith("/api/v1/message-templates")) {
+        return {
+          data: [{ id: "m1", title: "Boas-vindas", body: "Oi!", shortcut: null, owner_user_id: null }],
+        };
+      }
+      return leitura?.(caminho);
+    });
+
+    await abrirComTelefone("(11) 99999-0001");
+
+    // O rótulo precisa estar ESCRITO no gatilho, não só no aria-label: um valor
+    // inicial que não é opção faz o Radix esconder o placeholder.
+    const gatilho = await screen.findByRole("combobox", { name: "Usar modelo de mensagem" });
+    expect(gatilho).toHaveTextContent("Usar modelo de mensagem");
+  });
+
   it("quem não pode atender não vê o botão", () => {
     podeMock.mockReturnValue(false);
     lerCanaisE([], []);

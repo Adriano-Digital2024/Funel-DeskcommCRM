@@ -77,9 +77,6 @@ import { useMessageTemplates } from "@/hooks/inbox/useMessageTemplates";
 import type { Contact } from "@/lib/types/contacts";
 import { cn } from "@/lib/utils";
 
-/** Sinônimos do gatilho de modelo de mensagem, que não tem `children` de texto. */
-const SEM_MODELO = "__sem-modelo__";
-
 /**
  * O corpo do painel — os três campos que o operador preenche.
  *
@@ -103,7 +100,9 @@ function CorpoDoPainel({
   const [termoBuscado, setTermoBuscado] = useState("");
   const [nome, setNome] = useState("");
   const [mensagem, setMensagem] = useState("");
-  const [modelo, setModelo] = useState(SEM_MODELO);
+  // `""` é o valor que o Radix lê como "nada escolhido" e troca pelo placeholder,
+  // que é o rótulo visível do gatilho. Um valor que não é `SelectItem` deixaria a caixa vazia.
+  const [modelo, setModelo] = useState("");
   const [contatoEscolhido, setContatoEscolhido] = useState<Contact | null>(null);
 
   /**

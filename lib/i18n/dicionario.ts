@@ -15487,7 +15487,7 @@ export const DICIONARIO: Traducoes = {
   // #2813 — o painel "Iniciar conversa" do Inbox.
   "Nova conversa": { es: "Nueva conversación" },
   "Diga para quem e o que dizer. O canal de saída é você quem escolhe quando há mais de um número.": {
-    es: "Diga para quién y qué decir. El canal de salida lo eliges tú cuando hay más de un número.",
+    es: "Di para quién y qué decir. El canal de salida lo eliges tú cuando hay más de un número.",
   },
   "Para quem": { es: "Para quién" },
   "Telefone ou nome do contato": { es: "Teléfono o nombre del contacto" },
