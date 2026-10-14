@@ -1,4 +1,4 @@
--- manifest: **A tarefa criada de dentro do atendimento fica presa à demanda, não nasce avulsa (#2818).** `crm_tasks` só tinha `lead_id` e `contact_id`: a tarefa combinada no meio da conversa ("te chamo amanhã") nascia sem vínculo com o ASSUNTO que a originou e não voltava à tela de quem precisa cumprir. Coluna `demanda_id uuid references public.demandas(id) on delete set null` — o MESMO `on delete set null` do `lead_id` (encerrar ou apagar a demanda não pode apagar o que a pessoa escreveu para si mesma) — com índice parcial `(demanda_id) where demanda_id is not null`. Aditiva e reversível, sem reescrita de dado; sem função e sem policy nova (a RLS por `organization_id` já vigente em `crm_tasks` cobre a coluna).
+-- manifest: **A tarefa criada de dentro do atendimento fica presa à demanda, não nasce avulsa (#2818).** `crm_tasks` só tinha `lead_id` e `contact_id`: a tarefa combinada no meio da conversa ("te chamo amanhã") nascia sem vínculo com o ASSUNTO que a originou e não voltava à tela de quem precisa cumprir. Coluna `demanda_id uuid references public.demandas(id) on delete set null` — o MESMO `on delete set null` do `lead_id` (encerrar ou apagar a demanda não pode apagar o que a pessoa escreveu para si mesma) — com índice parcial `(demanda_id) where demanda_id is not null`. Aditiva e reversível, sem reescrita de dado; sem função e sem policy nova (a demanda ser da organização de quem grava é conferido nas rotas, em `lib/tarefas/demanda.ts`).
 
 -- ---- a tarefa nasce presa à demanda do atendimento (migration 0659, #2818) ----
 -- Hoje a tarefa tem DOIS vínculos opcionais, `lead_id` e `contact_id`, e nenhum
@@ -21,10 +21,11 @@
 -- que a pessoa escreveu para si mesma. A tarefa continua na lista, com o vínculo
 -- zerado — nada some da tela de quem ainda tem o que fazer.
 --
--- Sem RLS nova: a policy de `crm_tasks` isola por `organization_id`, e a coluna
--- nova viaja sob a mesma policy. Sem trigger: a FK sozinha já garante que a
--- demanda apontada existe. Idempotente (`add column if not exists`, `create index
--- if not exists`), re-aplicável pelo `update.sh` de um clone.
+-- Sem RLS nova: a policy de `crm_tasks` isola por `organization_id`. A FK só
+-- garante que a demanda apontada existe; que ela é da organização de quem grava
+-- é conferido nas rotas de criar e editar, em `lib/tarefas/demanda.ts`. Sem
+-- trigger. Idempotente (`add column if not exists`, `create index if not
+-- exists`), re-aplicável pelo `update.sh` de um clone.
 
 alter table public.crm_tasks
   add column if not exists demanda_id uuid references public.demandas(id) on delete set null;

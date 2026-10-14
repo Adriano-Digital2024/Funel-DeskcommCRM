@@ -54490,10 +54490,11 @@ on conflict (model) do update set
 -- que a pessoa escreveu para si mesma. A tarefa continua na lista, com o vínculo
 -- zerado — nada some da tela de quem ainda tem o que fazer.
 --
--- Sem RLS nova: a policy de `crm_tasks` isola por `organization_id`, e a coluna
--- nova viaja sob a mesma policy. Sem trigger: a FK sozinha já garante que a
--- demanda apontada existe. Idempotente (`add column if not exists`, `create index
--- if not exists`), re-aplicável pelo `update.sh` de um clone.
+-- Sem RLS nova: a policy de `crm_tasks` isola por `organization_id`. A FK só
+-- garante que a demanda apontada existe; que ela é da organização de quem grava
+-- é conferido nas rotas de criar e editar, em `lib/tarefas/demanda.ts`. Sem
+-- trigger. Idempotente (`add column if not exists`, `create index if not
+-- exists`), re-aplicável pelo `update.sh` de um clone.
 
 alter table public.crm_tasks
   add column if not exists demanda_id uuid references public.demandas(id) on delete set null;

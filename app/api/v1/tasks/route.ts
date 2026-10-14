@@ -179,8 +179,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (error) {
-    // 23503 = negócio, contato ou demanda de outra organização (ou apagado no
-    // meio). A recusa nomeia os campos porque quem lê é quem escolheu na tela.
+    // 23503 = negócio, contato ou demanda apagado no meio, entre a escolha e a
+    // gravação. A recusa nomeia os campos porque quem lê é quem escolheu na tela.
     if (error.code === "23503") {
       return fail("validation_failed", t("O negócio, o contato ou a demanda vinculada não existe."), 422, {
         requestId,
