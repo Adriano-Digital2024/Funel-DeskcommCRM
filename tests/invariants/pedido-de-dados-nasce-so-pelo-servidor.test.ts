@@ -25,6 +25,8 @@ import { GOV_ADMIN, GOV_ORG, GOV_VIEWER, lastLine, seedGov, sql } from "./gov-he
 
 const PEDIDO = "c0de0672-7777-4000-8000-000000000001";
 const PEDIDO_DO_ADMIN = "c0de0672-7777-4000-8000-000000000002";
+/** Id próprio do controle positivo: não depende de o INSERT do admin ter sido recusado. */
+const PEDIDO_DO_SERVIDOR = "c0de0672-7777-4000-8000-000000000003";
 const ENTIDADE_COMUM = "c0de0672-3333-4000-8000-000000000001";
 const TIPOS_DO_SERVIDOR = ["lgpd.data_request_received", "lgpd.redact_received"] as const;
 
@@ -67,7 +69,7 @@ function pedidoExiste(id: string): boolean {
 beforeAll(() => {
   seedGov();
   sql(`
-    delete from public.lgpd_requests where id in ('${PEDIDO}', '${PEDIDO_DO_ADMIN}');
+    delete from public.lgpd_requests where id in ('${PEDIDO}', '${PEDIDO_DO_ADMIN}', '${PEDIDO_DO_SERVIDOR}');
     insert into public.lgpd_requests (id, organization_id, request_type, source, scope, due_at, request_payload)
       values ('${PEDIDO}', '${GOV_ORG}', 'data_request', 'nuvemshop', 'contact', now() + interval '7 days',
               '{"delivery":{"method":"email","address":"titular@invariant.test"}}'::jsonb);
@@ -162,12 +164,12 @@ describe("o pedido de dados é gravado só pelo servidor", () => {
   it("controle positivo: o servidor (service_role) cria e atualiza o pedido", () => {
     sql(`set role service_role;
       insert into public.lgpd_requests (id, organization_id, request_type, source, scope, due_at)
-        values ('${PEDIDO_DO_ADMIN}', '${GOV_ORG}', 'data_request', 'nuvemshop', 'contact', now() + interval '7 days');
-      update public.lgpd_requests set status = 'processing' where id = '${PEDIDO_DO_ADMIN}';`);
-    expect(lastLine(sql(`select status from public.lgpd_requests where id = '${PEDIDO_DO_ADMIN}';`))).toBe(
+        values ('${PEDIDO_DO_SERVIDOR}', '${GOV_ORG}', 'data_request', 'nuvemshop', 'contact', now() + interval '7 days');
+      update public.lgpd_requests set status = 'processing' where id = '${PEDIDO_DO_SERVIDOR}';`);
+    expect(lastLine(sql(`select status from public.lgpd_requests where id = '${PEDIDO_DO_SERVIDOR}';`))).toBe(
       "processing",
     );
-    sql(`delete from public.lgpd_requests where id = '${PEDIDO_DO_ADMIN}';`);
+    sql(`delete from public.lgpd_requests where id = '${PEDIDO_DO_SERVIDOR}';`);
   });
 });
 
