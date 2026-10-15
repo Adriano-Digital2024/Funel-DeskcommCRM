@@ -2527,7 +2527,7 @@ $(c_ylw "═══════════════════════�
 
   $(t "Espere alguns minutos e confira (o certo é responder 307):")
 
-       curl -sI https://${DOMAIN}/app | head -1
+       curl -sSI https://${DOMAIN}/app | head -1
 
   $(t "Quando der 307, rode de novo o mesmo comando de instalação: ele confere")
   $(t "o que falta e termina, sem apagar nada.")
