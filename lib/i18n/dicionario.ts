@@ -8861,9 +8861,11 @@ export const DICIONARIO: Traducoes = {
   "Concluído em": { es: "Concluido el" },
   "Aprovar export": { es: "Aprobar exportación" },
   "Aprovar exportação de dados": { es: "Aprobar exportación de datos" },
-  "Ao confirmar, esta solicitação será colocada em fila para exportação dos dados do titular. A ação não pode ser desfeita.": {
-    es: "Al confirmar, esta solicitud se pondrá en cola para exportar los datos del titular. La acción no se puede deshacer.",
-  },
+  "Ao confirmar, os dados do titular são exportados e enviados para o e-mail abaixo. Confira se é a pessoa certa: o envio não pode ser desfeito.": { es: "Al confirmar, los datos del titular se exportan y se envían al correo de abajo. Comprueba que sea la persona correcta: el envío no se puede deshacer." },
+  "Titular": { es: "Titular" },
+  "Envio para": { es: "Envío a" },
+  "Sem nome no cadastro": { es: "Sin nombre en el registro" },
+  "Sem e-mail: o arquivo fica para entrega manual": { es: "Sin correo: el archivo queda para entrega manual" },
   "Aprovar anonimização": { es: "Aprobar anonimización" },
   "Aprovar anonimização de contato": { es: "Aprobar anonimización de contacto" },
   "Ao confirmar, todos os dados pessoais do titular serão anonimizados (irreversível). O histórico de timestamps é preservado.": {
