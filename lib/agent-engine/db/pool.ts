@@ -30,7 +30,23 @@ export function createPool(
   const raw = process.env.DB_POOL_MAX;
   const parsed = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
   const max = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-  const pool = new pg.Pool({ connectionString: databaseUrl, max });
+
+  // Configuração conservadora para prevenir acúmulo de conexões ociosas.
+  // Com Supavisor (porta 6543), estas configs trabalham em conjunto com o
+  // pooler server-side para manter o número de conexões estável e baixo.
+  const pool = new pg.Pool({
+    connectionString: databaseUrl,
+    max,
+    // Libera conexões ociosas após 30 segundos — impede acúmulo de idle
+    // in transaction que satura o pool do Supabase ( causa dos 504 ).
+    idleTimeoutMillis: 30_000,
+    // Falha rápido se não conseguir adquirir conexão em 10 segundos —
+    // evita requests presos esperando slot livre.
+    connectionTimeoutMillis: 10_000,
+    // Permite que o Node.js encerre processos se todas as conexões estiverem
+    // ociosas (útil para workers que processam lotes e depois dormem).
+    allowExitOnIdle: true,
+  });
   const handler =
     onError ??
     ((err: Error): void => {

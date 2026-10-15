@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useT } from "@/hooks/i18n/useT";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api/client";
@@ -70,6 +71,7 @@ export function JanelaFechadaAviso({
   const t = useT();
   const send = useSendMessage();
   const [escolhido, setEscolhido] = useState("");
+  const [valoresParametros, setValoresParametros] = useState<Record<string, string>>({});
 
   const fonte = fonteDeTemplates(provider);
   const { data } = useQuery({
@@ -111,10 +113,12 @@ export function JanelaFechadaAviso({
         // O texto renderizado é também o que a conversa mostra depois: é o
         // mesmo caminho que o agente já usa quando manda modelo.
         body: textoDoModelo(atual),
+        ...(pedeParametros ? { template_values: valoresParametros } : {}),
       },
       {
         onSuccess: () => {
           setEscolhido("");
+          setValoresParametros({});
           toast.success(t("Modelo enviado — a janela reabre quando o cliente responder."));
         },
         onError: (e: unknown) =>
@@ -161,12 +165,31 @@ export function JanelaFechadaAviso({
       )}
 
       {pedeParametros && (
-        // Avisa ANTES do clique: este modelo precisa de valores e este seletor
-        // ainda não os coleta, então o envio vai falhar na plataforma.
-        <p className="mt-2 text-[11px] text-amber-900/80 dark:text-amber-200/80">
-          {t("Este modelo pede")} {atual?.slots?.length} {t("valor(es) e ainda não dá para preenchê-los aqui — envie por")}{" "}
-          <strong>{t("Conexões → Templates")}</strong>, {t("ou escolha um modelo sem parâmetros.")}
-        </p>
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-amber-900/80 dark:text-amber-200/80">
+            {t("Este modelo pede")} {atual?.slots?.length} {t("parâmetro(s). Preencha abaixo:")}
+          </p>
+          {(atual?.slots ?? []).map((slot) => {
+            const s = slot as { key: string; onde: string };
+            return (
+              <div key={s.key} className="flex items-center gap-2">
+                <label className="text-[11px] text-amber-900/80 dark:text-amber-200/80 whitespace-nowrap">
+                  {s.onde} {{1: "1", 2: "2", 3: "3"}[s.key] ?? s.key}:
+                </label>
+                <Input
+                  type="text"
+                  value={valoresParametros[s.key] ?? ""}
+                  onChange={(e) =>
+                    setValoresParametros((prev) => ({ ...prev, [s.key]: e.target.value }))
+                  }
+                  placeholder={`{{${s.key}}}`}
+                  className="h-7 flex-1 text-xs"
+                  disabled={send.isPending}
+                />
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
