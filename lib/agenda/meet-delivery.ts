@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { STATUS_OPERANTE } from "@/lib/organizacao/operante";
 import { decidirElegibilidade, montarEstadoDeElegibilidade, ttlDaAutorizacaoMs } from "@/lib/ai/elegibilidade/gate";
 import type { ServiceBoundary } from "@/lib/atendimento/fronteira";
 import type { JobClaim } from "@/lib/agent-engine/queue/claim";
@@ -34,7 +35,19 @@ function requirePolicy(raw: unknown): { humanCommand: boolean; contactId: string
   const p = requireCurrentPolicy(raw);
   if (p.human_command === true) return { humanCommand: true, contactId: p.contact_id, channelSessionId: p.channel_session_id };
   const result = decidirElegibilidade(montarEstadoDeElegibilidade({
-    aiGate: p.ai_gate, forceHuman: p.force_human, assigneeKind: p.assignee_kind ?? null,
+    // `current: true` só sai de `fn_meet_delivery_current`, que já exige a
+    // organização operante (join organizations status='active'): quando a
+    // política chega aqui, a org ESTAVA operante na mesma leitura.
+    orgStatus: STATUS_OPERANTE,
+    aiGate: p.ai_gate, forceHuman: p.force_human,
+    // `ai_opt_out` (marca permanente, issue 2379) não vem no payload de
+    // `fn_meet_delivery_policy` — esta função lê o POLICY da conversa, e a
+    // coluna nova mora no CONTATO. O acoplamento que fecha a porta aqui é o
+    // próprio desenho: armar `ai_opt_out` também liga `contacts.force_human`
+    // e `devolverAtendimentoAoAgente` se recusa a limpá-lo enquanto a marca
+    // estiver ligada, então `p.force_human` já é true neste ponto. Deixar isto
+    // explícito (e não `false` mudo) é o que faz o leitor não tratar como esquecimento.
+    aiOptOut: false, assigneeKind: p.assignee_kind ?? null,
     botSilencedUntil: p.bot_silenced_until, aiAuthorizedAt: p.ai_authorized_at,
     agora: new Date(), ttlMs: ttlDaAutorizacaoMs(process.env),
   }));
