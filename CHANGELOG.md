@@ -148,6 +148,8 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
   Você não precisa fazer nada. Em Conexões, use **Renomear** no cartão desejado.
 
+  Contribuição de @michelminato (#2802).
+
 - **Marcar vários negócios como perdidos de uma vez, com um motivo, no quadro do funil** No quadro do funil, a barra de ações em lote (que já tinha Mover, Responsável, Tag e Excluir) agora tem **"Marcar como perdido…"**. Ela abre o mesmo diálogo de motivo que o card já usa — com os motivos cadastrados no funil — e aplica **um único motivo** a todos os negócios selecionados. O motivo é obrigatório: sem ele a ação não confirma. Ao confirmar, um aviso diz quantos foram marcados, e a linha do tempo de cada negócio registra o motivo ("Perdido — Preço alto", por exemplo), com a mesma frase de motivo da perda feita pelo card. Antes disso, fechar vários negócios como perdidos era um a um, ou "Excluir", que apaga o negócio de verdade.
 
   A ação só aparece quando o funil tem uma etapa de perda, e a escrita respeita a organização e a permissão de cada item.
@@ -179,6 +181,8 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 ### Alterado
 
 - **O uso das ferramentas passa a saber QUAL termo não foi encontrado** O painel de capacidades já contava "não achei" desde o conserto anterior; agora o registro de auditoria guarda também o termo buscado, e a leitura por termo fica disponível para a tela. Nada muda para quem opera a VPS: a migration entra sozinha na atualização e nenhuma tela nova aparece.
+
+  Contribuição de @webtecnica (#2875).
 
 - **O pedido de dados que chega pela Nuvemshop passa a esperar o clique em Aprovar** Quando um cliente da loja pede os próprios dados pela Nuvemshop (direito de acesso da LGPD), o CRM cria o pedido e passa a esperar alguém da equipe aprovar. Nada é montado nem enviado ao cliente antes disso. Até esta versão, o arquivo saía sozinho para o e-mail que veio no pedido, e o botão "Aprovar export" não segurava nada.
 
@@ -228,7 +232,7 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 - **O "digitando…" fica aceso no WhatsApp do cliente até a resposta do agente sair** O agente acendia o "digitando…" uma vez só, no instante em que o modelo começava a escrever. As checagens que rodam antes (segurança, etapa do funil, conexões das ferramentas) passavam sem indicador, e o WhatsApp apaga o sinal sozinho depois de uns 25 segundos. Numa resposta de cerca de um minuto, medida numa instalação real, o cliente via o "digitando…" sumir e a conversa parar, e concluía que ninguém ia responder. Agora o indicador acende assim que o agente começa a trabalhar na mensagem e é renovado a cada 10 segundos até a primeira bolha sair. Depois dela, para: um "digitando…" depois da resposta leria como uma segunda mensagem a caminho. Um turno que passa de 2 minutos deixa de renovar, para não fingir que alguém escreve num atendimento travado. Vale só para quem fala com o cliente; nada muda na configuração, no banco ou no ritmo de envio.
 
-  Contribuição de @rabbitkleber.
+  Contribuição de @KleberCoelho (#2843), com os commits de @rabbitkleber.
 
 - **Editar o funil e o material de um agente pela API agora grava** Quem editava um agente pela API (integrações e chamadas por token) mandando `pipeline_ids` ou `knowledge_source_ids` no `PATCH /api/v1/ai/agents/:id/versions/:vid` recebia 200 e nada era gravado: a versão seguia com o funil e o material antigos. Agora a edição grava, e antes confere que o funil e o material existem nesta organização: material arquivado ou de outra organização passa a ser recusado também aqui, como já era na criação. A tela do agente não era afetada, porque salva por outro caminho, que já gravava.
 
@@ -268,6 +272,8 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 - **No celular, a barra de ações da conversa fica em uma fileira e devolve a tela às mensagens** Ao abrir uma conversa pelo telefone (Inbox, qualquer aba), os botões do cabeçalho — buscar, ligar, assumir, pausar o automático, transferir, lembrar, fechar, arquivar, ver contato — quebravam em três ou quatro fileiras e ocupavam boa parte da altura da tela, deixando pouco espaço para a conversa. Abaixo de 768px a barra agora é uma fileira só, que rola na horizontal; nenhuma ação foi escondida nem movida para menu. O cabeçalho também ficou um pouco mais baixo no celular. No computador nada muda. Nenhuma mudança de banco.
 
+  Contribuição de @carloshmlima (#2810).
+
 - **A prévia do vCard na lista do Inbox mostra o nome do contato** Conversa cuja última mensagem era um contato compartilhado (vCard) aparecia na lista do Inbox com o literal `[contact]` no lugar do nome — e, quando o cartão vinha cru, com o começo do texto `BEGIN:VCARD`. Agora a linha mostra `Contato: <nome>`, lido do próprio cartão, na conversa individual e também na de grupo. Texto, fotos, áudios e documentos continuam com a prévia de sempre.
 
   Você não precisa fazer nada.
@@ -285,6 +291,8 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
   Contribuição de @webtecnica (#2693, fecha #2648).
 
 - **Atrás do túnel da Cloudflare, o endereço de quem acessa passa a ser lido do cabeçalho que a Cloudflare escreve** Na instalação com o Cloudflare Tunnel (`docker-compose.cloudflared.yml`), a borda da Cloudflare acrescenta ao `x-forwarded-for` que recebe, em vez de substituí-lo como o Caddy do kit faz. O app lia o primeiro endereço dessa lista, que ali não é necessariamente o de quem acessa. O override do túnel agora declara `IP_DO_CLIENTE_HEADER=cf-connecting-ip` no `app`, e `ipDoCliente` passa a usar esse cabeçalho quando a variável existe e o valor é um IP. Sem a variável (Caddy, Traefik, Nginx), nada muda. As leituras de endereço espalhadas pelas actions, pela trava de tentativas de login e pelas rotas de captura passam todas pela mesma função, e uma cerca reprova leitura nova fora dela. Quem usa o túnel recebe a variável pelo próprio override na atualização; não há arquivo para editar.
+
+  Construído sobre o Cloudflare Tunnel de @caiofacchinato (#2611).
 
 - **Depois de gravar a marca, uma leitura feita no meio da troca não traz mais de volta a marca anterior** Depois de gravar a marca (logo, nome, ícone), uma leitura feita no meio da troca não traz mais de volta a marca anterior; antes, ela podia voltar a aparecer por até 30 segundos. Acontecia quando uma tela estava sendo montada no instante da gravação: o servidor reaproveitava, dentro dessa tela, a resposta que o banco tinha dado antes da gravação, e a guardava como se fosse a nova. A mesma leitura reaproveitada foi fechada nas outras configurações da instalação que a tela grava e o servidor guarda pelos mesmos 30 segundos: o CSS personalizado, o modo de cadastro, o comportamento da instalação em /admin/sistema e as credenciais do Google Agenda e do app da Meta. A memória curta de cada uma continua existindo como antes. Nenhuma mudança de banco nem de configuração.
 
@@ -315,6 +323,8 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
 
 - **O Gemini 3.6, 3.7 e 3.8 Flash passam a custar o dobro em 1º de janeiro de 2027** A partir de 1º de janeiro de 2027 (UTC) o custo gravado em Uso e orçamento do Gemini 3.6 Flash, do 3.7 Flash e do 3.8 Flash dobra: US$ 1,50 de entrada e US$ 7,50 de saída por milhão de tokens, e a leitura de cache acompanha. Até esse instante continua o preço promocional — no atendimento e também no classificador de sentimento e no respondedor antigo, que gravam o mesmo corte. Na lista de modelos o número mostrado já é o de 2027. Não é preciso fazer nada.
 
+  Contribuição de @Frank-zhu2000 (#2781).
+
 - **O aviso de buildx ausente do update manda instalar o pacote que esta VPS tem** Quando o plugin buildx do Docker falta, a atualização para antes de mexer em qualquer coisa e explica o motivo. Até aqui ela mandava instalar sempre o pacote `docker-buildx-plugin`, que só existe no repositório oficial do Docker. Numa VPS com o Docker do próprio Ubuntu, o apt respondia que o pacote não existe. Agora o aviso consulta o índice do apt desta VPS e cita o nome que ela encontra: `docker-buildx-plugin` quando o repositório do Docker está ligado, `docker-buildx` quando só o Ubuntu oferece o plugin. Sem nenhum dos dois no índice, o aviso cita os dois nomes, com a origem de cada um.
 
   Você não precisa fazer nada.
@@ -328,6 +338,8 @@ Se você roda o DeskcommCRM numa VPS, **leia a seção da versão para a qual es
   Crédito: @daviguerreiroa.
 
 - **Recusa permanente do atendimento e da agenda para de travar o PostgREST (PT409, não 40001)** Recusas que nunca vão passar (`service_stale`, `google_stale`, `appointment_stale` e outras 14) saíam do banco com `errcode='40001'`, que quer dizer "conflito de serialização, tente de novo". O PostgREST 14 acredita e refaz a transação sozinho, sem limite: a v14.17 fixa a biblioteca `hasql-transaction` 1.1.0.1 ([haskell-packages.nix#L144](https://github.com/PostgREST/postgrest/blob/v14.17/nix/overlays/haskell-packages.nix#L144)), que repete a transação inteira em `40001` e também em `40P01` (deadlock), num laço sem teto ([Sessions.hs#L13-L46](https://github.com/nikita-volkov/hasql-transaction/blob/1.1.0.1/library/Hasql/Transaction/Private/Sessions.hs#L13-L46)). Numa instalação self-hosted, uma única chamada recusada virou ~1.750 rollbacks/s, o pool esgotado (`PGRST003`), o banco em 243% de CPU e o CRM inteiro em "Algo deu errado". A guarda da 0250 não alcança esse caso, porque depende do `sb-request-id`, que o self-host não carimba. A migration 0654 troca o código por `PT409` nos 34 pontos de recusa permanente de 16 funções. O PostgREST responde 409 e não repete. Onde o banco capturava a recusa antiga para registrar o desfecho (a recuperação de falta, que grava o recibo 'stale' e abre o aviso na Central quando o atendimento mudou), a captura passa a aceitar os dois códigos, e o comportamento visível fica o mesmo. `service_contact_changed`, `appointment_notice_busy` e `contact_redaction_busy` continuam `40001`, porque ali repetir passa. As rotas de demandas, agendamentos e agendas do Google respondem 409 com `PT409` ou `40001`. O código antigo continua aceito, porque o banco e a imagem não se atualizam no mesmo instante. — Paulo
+
+  Contribuição de @paulolimajr77 (#2805).
 
 - **Aba oculta para de refazer as telas de atendimento a cada 45 segundos** O refetch de segurança do inbox, do quadro e do dossiê continuava rodando com a aba escondida, refazendo páginas inteiras de dados a cada 45 segundos sem ninguém olhando — numa instalação no plano gratuito do Supabase, isso pesa na cota de tráfego. Agora ele pausa enquanto a aba está oculta e confere imediatamente ao voltar para ela, como já faziam presença, chamada de voz, alertas e a atualização da interface.
 
