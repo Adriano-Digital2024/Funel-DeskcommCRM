@@ -78,7 +78,10 @@ vi.mock("@/lib/supabase/admin", () => ({
       update: (patch: Patch) => {
         estado.updates.push(patch);
         const recusa = estado.recusarPendingReview && patch.status === "pending_review";
+        // `data` responde à reivindicação atômica do worker (#2751: update…select("id")):
+        // uma linha devolvida = este evento reivindicou o pedido e segue exportando.
         const resposta = {
+          data: [{ id: "reivindicado" }],
           error: recusa
             ? {
                 code: "23514",
@@ -87,7 +90,13 @@ vi.mock("@/lib/supabase/admin", () => ({
               }
             : null,
         };
-        const q = { eq: () => q, then: (ok: (v: unknown) => unknown) => Promise.resolve(resposta).then(ok) };
+        const q = {
+          eq: () => q,
+          neq: () => q,
+          or: () => q,
+          select: () => q,
+          then: (ok: (v: unknown) => unknown) => Promise.resolve(resposta).then(ok),
+        };
         return q;
       },
     }),
@@ -146,6 +155,8 @@ describe("lgpd-export-worker: o desfecho pending_review é conferido", () => {
     const ultimo = estado.updates[estado.updates.length - 1]!;
     expect(ultimo.status).toBe("received");
     expect(String(ultimo.error_message)).toContain("23514");
+    // De volta à fila sem reivindicação pendurada (#2751): o retry não espera a janela de órfã.
+    expect(ultimo.export_claimed_at).toBeNull();
     // Só o código sai do erro: o detalhe do Postgres traz a linha, e a linha traz o e-mail.
     expect(JSON.stringify(estado.updates)).not.toContain("titular@exemplo.test");
     expect(logger.error).toHaveBeenCalled();
