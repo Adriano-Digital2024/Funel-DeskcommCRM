@@ -2,6 +2,7 @@
 import { usePermission } from "@/hooks/auth/AuthProvider";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import type { MidiaDeTemplate } from "@/lib/templates/midias";
 
 export interface MessageTemplate {
   id: string;
@@ -9,6 +10,8 @@ export interface MessageTemplate {
   body: string;
   shortcut: string | null;
   owner_user_id: string | null;
+  /** Imagens opcionais da resposta rápida; ausente equivale a template só de texto. */
+  midias?: MidiaDeTemplate[] | null;
 }
 
 /** Onda 5: templates de script (pessoais + compartilhados) para o slash-menu do composer. */

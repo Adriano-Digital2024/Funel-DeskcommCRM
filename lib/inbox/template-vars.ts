@@ -1,4 +1,5 @@
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
+import type { MidiaDeTemplate } from "@/lib/templates/midias";
 
 /**
  * Interpola variáveis de template com dados do contato da conversa (Onda 5).
@@ -85,4 +86,23 @@ export function interpolateTemplate(body: string, contact: TemplateContact): str
     if (key === "primeiro_nome") return first !== "" ? first : literal;
     return literal; // desconhecida: mantém
   });
+}
+
+
+/** Estrutura de uma resposta rápida usada pelo compositor. */
+export interface RespostaRapida {
+  id?: string;
+  body: string;
+  midias?: readonly MidiaDeTemplate[] | null;
+}
+
+/** Prepara o texto interpolado e uma cópia independente das mídias do template. */
+export function payloadDeUso(
+  template: RespostaRapida,
+  contact: TemplateContact,
+): { texto: string; midias: MidiaDeTemplate[] } {
+  return {
+    texto: interpolateTemplate(template.body, contact),
+    midias: [...(template.midias ?? [])],
+  };
 }

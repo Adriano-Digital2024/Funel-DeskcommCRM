@@ -35,6 +35,7 @@ import { imagemDoClipboard } from "@/lib/inbox/clipboard-image";
 import {
   interpolateTemplate,
   motivoDoCuringaLiteral,
+  payloadDeUso,
   type TemplateContact,
 } from "@/lib/inbox/template-vars";
 import {
@@ -42,6 +43,9 @@ import {
   type MotivoDeRecusa,
 } from "@/lib/inbox/rascunho-sugerido";
 import { apiClient } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/types";
+import { showApiError } from "@/components/feedback/ApiErrorToast";
+import { mimeDaMidia, type MidiaDeTemplate } from "@/lib/templates/midias";
 import { embutirMencoes, podarMencoes, type MencaoEscolhida } from "@/lib/notifications/mentions";
 import { cn } from "@/lib/utils";
 import { resolveSharedContact } from "@/lib/messaging/contact-card";
@@ -145,6 +149,10 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   // deixar a faixa prometendo texto que já saiu seria mentira de tela.
   const [rascunhoUsado, setRascunhoUsado] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  // Fila exclusiva das imagens carregadas de uma resposta rápida.
+  // `pendingFile` continua reservado ao anexo comum/clipboard.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [legendaInicial, setLegendaInicial] = useState<string | null>(null);
   /**
    * O modo em que o arquivo foi ESCOLHIDO, congelado na escolha — e não o modo
    * em que o diálogo está aberto agora.
@@ -368,26 +376,112 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
       });
   }
 
+  function escreverNoCampo(valor: string) {
+    setText(valor);
+    requestAnimationFrame(() => {
+      const ta = taRef.current;
+      if (!ta) return;
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = valor.length;
+      autoresize();
+    });
+  }
+
+  async function arquivoDaMidia(
+    templateId: string,
+    midia: MidiaDeTemplate,
+    indice: number,
+  ): Promise<File> {
+    const res = await fetch(`/api/v1/message-templates/${templateId}/midias/${indice}`);
+    if (!res.ok) {
+      throw new ApiError(res.status, "midia_indisponivel", undefined, "", "");
+    }
+    const blob = await res.blob();
+    const nome = midia.storage_path.split("/").pop() ?? `imagem-${indice + 1}`;
+    return new File([blob], nome, { type: mimeDaMidia(midia.storage_path) });
+  }
+
   function applyTemplate(tpl: MessageTemplate) {
-    const filled = interpolateTemplate(tpl.body, contato);
-    setText(filled);
-    // Contato sem `name` NEM `display_name`: o literal sobrevive no texto e iria
-    // pro cliente como `{{nome}}`. O toast é o primeiro aviso; a faixa
-    // persistente (mais abaixo) é o que fica, porque o operador precisa editar
-    // antes de mandar (#2744).
+    // Impede que escolher um template substitua uma prévia já aberta.
+    if (pendingFile || pendingFiles.length > 0) return;
+
+    const payload = payloadDeUso(tpl, contato);
+    setMenuDismissed(true);
+
     if (motivoDoCuringaLiteral(tpl.body, contato)) {
       toast.warning(
         t("Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar."),
       );
     }
-    setMenuDismissed(true);
-    const ta = taRef.current;
-    if (!ta) return;
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.selectionStart = ta.selectionEnd = filled.length;
-      autoresize();
+
+    // Templates sem mídia e respostas bloqueadas mantêm o comportamento textual.
+    if (!payload.midias.length || respostaBarrada) {
+      escreverNoCampo(payload.texto);
+      return;
+    }
+
+    void Promise.all(
+      payload.midias.map((midia, indice) => arquivoDaMidia(tpl.id, midia, indice)),
+    ).then((arquivos) => {
+      setPendingEm("reply");
+      setLegendaInicial(payload.texto);
+      setPendingFiles(arquivos);
+      setText("");
+    }).catch((erro: unknown) => {
+      showApiError(erro);
+      escreverNoCampo(payload.texto);
     });
+  }
+
+  /**
+   * Processa uma fotografia por vez. `fila` é um snapshot explícito:
+   * o próximo envio só começa em onSuccess, e recebe apenas os itens restantes.
+   * Assim o retry não volta a enviar arquivos que já foram confirmados.
+   */
+  function enviarAnexos(caption: string, fila: File[] = pendingFiles): void {
+    const [arquivo, ...resto] = fila;
+    if (!arquivo) {
+      setPendingFiles([]);
+      setLegendaInicial(null);
+      return;
+    }
+
+    const destino: DestinoDoUpload = pendingEm === "note" ? "nota" : "mensagem";
+    const legenda = destino === "nota" ? caption : (caption || undefined);
+
+    void upload.mutateAsync({ conversationId, file: arquivo, destino })
+      .then((uploaded) => {
+        const proximo = () => {
+          setPendingFiles((atuais) => atuais.slice(1));
+          setLegendaInicial(null);
+          enviarAnexos("", resto);
+        };
+
+        if (destino === "nota") {
+          createNote.mutate({
+            conversation_id: conversationId,
+            body: legenda ?? "",
+            anexo: {
+              storage_path: uploaded.storage_path,
+              media_mime: uploaded.media_mime,
+              media_size_bytes: uploaded.media_size_bytes,
+            },
+          }, { onSuccess: proximo });
+          return;
+        }
+
+        send.mutate({
+          conversation_id: conversationId,
+          type: uploaded.kind,
+          body: legenda,
+          media_storage_path: uploaded.storage_path,
+          media_mime: uploaded.media_mime,
+          media_size_bytes: uploaded.media_size_bytes,
+        }, { onSuccess: proximo });
+      })
+      .catch(() => {
+        // O hook de upload já mostra o erro; a fila fica aberta para retry.
+      });
   }
 
   /**
@@ -409,7 +503,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
    * a conversa esfriou).
    */
   function onPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
-    if (respostaBarrada || pendingFile) return;
+    if (respostaBarrada || pendingFile || pendingFiles.length > 0) return;
     const imagem = imagemDoClipboard(e.clipboardData, new Date());
     if (!imagem) return; // colagem de texto segue o caminho normal do browser
     e.preventDefault();
@@ -694,24 +788,38 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         </div>
       </div>
       <AttachmentPreviewDialog
-        file={pendingFile}
+        files={pendingFiles.length > 0 ? pendingFiles : pendingFile ? [pendingFile] : []}
+        legendaInicial={pendingFiles.length > 0 ? legendaInicial : null}
         sending={upload.isPending || send.isPending || createNote.isPending}
-        onCancel={() => setPendingFile(null)}
+        onCancel={() => {
+          if (pendingFiles.length > 0) {
+            const devolver = legendaInicial;
+            setPendingFiles([]);
+            setLegendaInicial(null);
+            if (devolver) escreverNoCampo(devolver);
+          } else {
+            setPendingFile(null);
+          }
+        }}
+        onRemove={(indice, caption) => {
+          const resto = pendingFiles.filter((_, i) => i !== indice);
+          if (resto.length === 0) {
+            setPendingFiles([]);
+            setLegendaInicial(null);
+            if (caption) escreverNoCampo(caption);
+            return;
+          }
+          setLegendaInicial(caption);
+          setPendingFiles(resto);
+        }}
         onSend={async (caption) => {
+          if (pendingFiles.length > 0) {
+            enviarAnexos(caption);
+            return;
+          }
           if (!pendingFile) return;
-          // A BIFURCAÇÃO (#1863, F3) — e ela é decidida pelo modo CONGELADO NA
-          // ESCOLHA (`pendingEm`), não pelo modo de agora.
-          //
-          //   reply  → upload em `whatsapp-media` + `useSendMessage`: exatamente
-          //            o que era antes, byte por byte. Nada aqui mudou para o
-          //            cliente.
-          //   note   → upload em `internal-media` + `useCreateNote`, com o trio
-          //            como `anexo`. Não existe passo de envio: a nota não é
-          //            mensagem, não tem `type`, não tem destino no WhatsApp.
-          //
-          // O `try/catch` continua cobrindo SÓ o upload (falha de gravação da
-          // nota é tratada pelo onError do próprio hook, e o diálogo fica aberto
-          // nos dois casos).
+
+          // Anexo comum: mantém a bifurcação e o modo congelado existentes.
           const destino: DestinoDoUpload = pendingEm === "note" ? "nota" : "mensagem";
           try {
             const uploaded = await upload.mutateAsync({ conversationId, file: pendingFile, destino });
@@ -742,8 +850,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
               { onSuccess: () => setPendingFile(null) },
             );
           } catch {
-            // toast já disparado pelo onError de useUploadMedia; dialog fica aberto p/ retry
-            return;
+            // O diálogo fica aberto para retry do anexo comum.
           }
         }}
       />
