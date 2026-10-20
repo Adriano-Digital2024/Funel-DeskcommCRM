@@ -1,0 +1,30 @@
+# docker-compose.cloudflared-host.yml
+#
+# Override para VPS que usa Cloudflare Tunnel gerenciado FORA do compose
+# (cloudflared no systemd do host).
+#
+# Arquitetura:
+#   Cloudflare -> cloudflared (systemd) -> http://localhost:3000 -> app
+#
+# O app é publicado SOMENTE em 127.0.0.1:3000. Nenhuma porta 80, 443, 8080 ou
+# 3680 é usada pelo CRM. O Caddy fica desligado por profile: o TLS termina na
+# Cloudflare e o próprio app recusa o webhook global do WAHA vindo da borda.
+#
+# Uso (o .env pode definir COMPOSE_FILE com estes dois arquivos):
+#   docker compose -f docker-compose.prod.yml \
+#     -f docker-compose.cloudflared-host.yml --env-file .env up -d
+#
+# Não mexa no /root/.cloudflared/config.yml: o ingress de
+# app.fortunadigital.me continua service: http://localhost:3000.
+
+services:
+  app:
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      IP_DO_CLIENTE_HEADER: cf-connecting-ip
+
+  # Nunca sobe: o CRM não usa Caddy nesta topologia. As portas 80/443 do host
+  # seguem com o nginx/Hestia e o serviço de e-mail.
+  caddy:
+    profiles: ["caddy-nao-usado-com-proxy-externo"]
