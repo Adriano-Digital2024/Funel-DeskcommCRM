@@ -127,14 +127,6 @@ export const PROVEDORES = [
     id: "deepseek",
     rotulo: "DeepSeek",
     quandoUsar:
-<<<<<<< HEAD
-      "Fala a API compatível com a OpenAI em https://api.deepseek.com. Custo por token entre os mais baixos do mercado, com qualidade competitiva em conversa e raciocínio.",
-    aceitaEndpointProprio: false,
-    catalogoSincronizavel: false,
-    ondePegarAChave: "https://platform.deepseek.com/api_keys",
-    prefixoDaChave: "sk-…",
-  },
-=======
       "Muito barata e desconta sozinha o trecho repetido da conversa, sem você configurar nada — o custo cai para quem atende com um roteiro que não muda.",
     aceitaEndpointProprio: true,
     catalogoSincronizavel: true,
@@ -168,7 +160,6 @@ export const PROVEDORES = [
     ondePegarAChave: "https://docs.example/provedor-personalizado",
     prefixoDaChave: "sk-…",
   },
->>>>>>> upstream/main
 ] as const satisfies readonly ProvedorSuportado[];
 // `as const satisfies` e não anotação de tipo: a anotação apagaria os literais
 // e `Provider` viraria `string`, deixando o compilador aceitar qualquer texto

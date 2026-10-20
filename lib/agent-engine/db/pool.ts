@@ -33,24 +33,6 @@ export function createPool(
   const raw = process.env.DB_POOL_MAX;
   const parsed = raw === undefined ? Number.NaN : Number.parseInt(raw, 10);
   const max = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-<<<<<<< HEAD
-
-  // Configuração conservadora para prevenir acúmulo de conexões ociosas.
-  // Com Supavisor (porta 6543), estas configs trabalham em conjunto com o
-  // pooler server-side para manter o número de conexões estável e baixo.
-  const pool = new pg.Pool({
-    connectionString: databaseUrl,
-    max,
-    // Libera conexões ociosas após 30 segundos — impede acúmulo de idle
-    // in transaction que satura o pool do Supabase ( causa dos 504 ).
-    idleTimeoutMillis: 30_000,
-    // Falha rápido se não conseguir adquirir conexão em 10 segundos —
-    // evita requests presos esperando slot livre.
-    connectionTimeoutMillis: 10_000,
-    // Permite que o Node.js encerre processos se todas as conexões estiverem
-    // ociosas (útil para workers que processam lotes e depois dormem).
-    allowExitOnIdle: true,
-=======
   // Socket MUDO (restart do Postgres/pooler sem FIN chegar) não emite 'error':
   // a query fica pendurada para sempre e quem a espera para junto — o laço do
   // drain da IA ficou dias parado assim com o healthz dizendo ok. O teto de
@@ -67,7 +49,6 @@ export function createPool(
     query_timeout: QUERY_TIMEOUT_MS,
     keepAlive: true,
     keepAliveInitialDelayMillis: KEEPALIVE_INITIAL_DELAY_MS,
->>>>>>> upstream/main
   });
   const handler =
     onError ??

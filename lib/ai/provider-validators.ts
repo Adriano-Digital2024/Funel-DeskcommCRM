@@ -215,10 +215,6 @@ export async function validateOpenRouterKey(apiKey: string): Promise<ValidationR
 }
 
 /**
-<<<<<<< HEAD
- * A API da DeepSeek fala o mesmo dialeto da OpenAI (`Bearer` + `/models`), então
- * a validação é o mesmo ping de `validateOpenAIKey`, apontado ao endpoint dela.
-=======
  * A DeepSeek é OpenAI-compatível e o `GET /models` dela EXIGE a credencial —
  * diferente do catálogo público da OpenRouter, que responde 200 para qualquer
  * string. Uma chamada já prova a chave e devolve o catálogo, então não há o
@@ -234,7 +230,6 @@ export async function validateOpenRouterKey(apiKey: string): Promise<ValidationR
  * é provado pela GERAÇÃO real (`lib/instalacao/prova-de-credito.ts`), não por
  * esta listagem. A raiz `https://api.deepseek.com` é a documentada pelo
  * provedor (ele também aceita `/v1`).
->>>>>>> upstream/main
  */
 export async function validateDeepSeekKey(apiKey: string): Promise<ValidationResult> {
   try {
@@ -256,10 +251,6 @@ export async function validateDeepSeekKey(apiKey: string): Promise<ValidationRes
   }
 }
 
-<<<<<<< HEAD
-export function validateProviderKey(
-  provider: Provider,
-=======
 /**
  * A Requesty prova a chave pelo `GET /v1/models` AUTENTICADO: chave inválida
  * devolve 403 (medido), chave boa devolve 200 com os modelos que a conta pode
@@ -328,7 +319,6 @@ export async function validateTypeSafeKey(apiKey: string): Promise<ValidationRes
  * ruim. A chave nunca é logada aqui: só o código do desfecho sai.
  */
 export async function validateCustomKey(
->>>>>>> upstream/main
   apiKey: string,
   baseUrl?: string,
 ): Promise<ValidationResult> {
@@ -398,8 +388,6 @@ export function validateProviderKey(
       return validateOpenRouterKey(apiKey);
     case "deepseek":
       return validateDeepSeekKey(apiKey);
-<<<<<<< HEAD
-=======
     case "requesty":
       return validateRequestyKey(apiKey);
     case "custom":
@@ -417,7 +405,6 @@ export function validateProviderKey(
         error:
           'assinatura_pelo_login: esta credencial não é uma chave — conecte a conta do ChatGPT no painel de Credenciais desta empresa.',
       });
->>>>>>> upstream/main
     default: {
       // Sem `never` aqui: o tipo é derivado das listas, e elas
       // crescem sem que este arquivo saiba. Provedor novo cadastrado antes de

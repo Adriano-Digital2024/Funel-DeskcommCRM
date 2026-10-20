@@ -298,13 +298,6 @@ const schema = z.object({
   VERCEL_AI_GATEWAY_URL: z.string().optional().default(""),
   ANTHROPIC_API_KEY: z.string().optional().default(""),
   OPENAI_API_KEY: z.string().optional().default(""),
-<<<<<<< HEAD
-  // DeepSeek: chave de PLATAFORMA (fallback quando a org não cadastrou BYOK).
-  // Opcional — sem ela o chat cai na credencial cadastrada pela tela, que é o
-  // caminho de instalação preferido. Ver resolveLanguageModel() em
-  // lib/ai/gateway.ts e chaveDePlataforma() em lib/ai/runtime/agent.ts.
-  DEEPSEEK_API_KEY: z.string().optional().default(""),
-=======
   // Esforço de raciocínio dos modelos da OpenAI (o*, gpt-5*, gpt-6*). `z.string()`
   // e NUNCA `z.enum` (motivo mais abaixo, em AGENT_DISPATCH_CONSUMER): quem valida
   // a grafia é o boot do worker, em `lib/agent-engine/env.ts`.
@@ -343,7 +336,6 @@ const schema = z.object({
   // tela nunca foi usada. Vazio é ausente: sem ela, nada passa. Quem lê é
   // `lib/automation/destinos-internos-autorizados.ts`.
   IA_DESTINOS_INTERNOS_PERMITIDOS: z.string().optional().default(""),
->>>>>>> upstream/main
 
   // Fusão (Fase 4): DONO ÚNICO dos eventos ai_agent.dispatch_requested.
   // 'engine' (default) = o worker agent-engine é o único consumidor (o cron

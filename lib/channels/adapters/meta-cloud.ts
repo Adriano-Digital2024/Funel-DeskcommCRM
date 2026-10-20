@@ -102,26 +102,6 @@ export const metaCloudAdapter: ChannelAdapter = {
   },
 
   /**
-<<<<<<< HEAD
-   * SEMPRE `true` — a credencial vive na SESSÃO (cifrada no banco), não no ambiente.
-   *
-   * `isConfigured` é síncrono e não pode consultar o banco. Olhar só o env
-   * responde "não configurado" para toda instalação que conectou pela tela (a
-   * migration 0087 grava `meta_token_encrypted` em `channel_sessions`).
-   *
-   * Medido em produção: o handler gravava `queued` com
-   * `queued_reason: meta_not_configured` e NUNCA chamava `send` — a mensagem
-   * ficava parada no inbox, sem erro, com o canal conectado e funcionando.
-   *
-   * O canal intermediado (zernio) JÁ resolveu isso devolvendo `true` e fazendo
-   * o `send` lançar quando não há credencial. O mesmo padrão vale aqui.
-   *
-   * O custo de responder `true` é que `send` precisa ser quem desiste — e ele
-   * LANÇA em vez de devolver `{externalId: null}`, para o handler gravar
-   * `failed` com motivo em vez de um `sent` sem id.
-   */
-  isConfigured(): boolean {
-=======
    * SEMPRE `true`, e isso não é preguiça: para este canal a pergunta não tem
    * resposta síncrona honesta.
    *
@@ -143,7 +123,6 @@ export const metaCloudAdapter: ChannelAdapter = {
    */
   isConfigured(): boolean {
     // Quem decide é `send()`, que pode consultar o banco. Ver o comentário.
->>>>>>> upstream/main
     return true;
   },
 
@@ -347,19 +326,12 @@ export const metaCloudAdapter: ChannelAdapter = {
     });
     // LANÇA, não devolve null: com `isConfigured` sempre true, quem desiste é
     // este ponto — e `{externalId: null}` faria o handler gravar `sent` sem id,
-<<<<<<< HEAD
-    // dizendo "enviado" para algo que nunca saiu.
-    if (!creds) {
-      throw new Error(
-        "meta_not_configured: nenhuma credencial para este número (nem na sessão, nem no ambiente).",
-=======
     // dizendo "enviado" para algo que nunca saiu. O handler traduz o prefixo
     // `meta_not_configured` para `queued` com o motivo: credencial ausente é
     // canal ainda não conectado, não falha desta mensagem.
     if (!creds) {
       throw new Error(
         "meta_not_configured: nenhuma credencial para esta sessão (nem na sessão, nem no ambiente).",
->>>>>>> upstream/main
       );
     }
 

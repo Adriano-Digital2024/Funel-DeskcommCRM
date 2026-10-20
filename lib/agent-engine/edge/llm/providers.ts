@@ -109,14 +109,6 @@ export const OPENAI_CODEX_ENDPOINT = 'https://api.openai.com/v1';
 export const OPENAI_CODEX_MODELS_ENDPOINT = 'https://chatgpt.com/backend-api/codex/models';
 
 /**
- * A DeepSeek também fala a API da OpenAI (o endpoint aceita `/chat/completions`
- * com `Bearer`), então o mesmo `@ai-sdk/openai` conversa com ela sem dependência
- * nova. O endpoint é fixo — diferentemente da OpenRouter, o provedor não honra
- * `base_url` do painel (ver `aceitaEndpointProprio: false` na lista única).
- */
-export const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com';
-
-/**
  * Cabeçalhos OPCIONAIS de atribuição da OpenRouter.
  *
  * A doc deles chama `HTTP-Referer` e `X-Title` de "optional headers to identify
@@ -429,14 +421,6 @@ export function createDefaultRegistry(opts?: {
         baseURL: baseUrl,
         fetch: fetchParaDestinoDaOrganizacao(contain(baseUrl)),
       }).chat(modelId);
-    },
-    deepseek: (apiKey, modelId) => {
-      const normalizedModelId = modelId.startsWith('deepseek/') ? modelId.slice('deepseek/'.length) : modelId;
-      return createOpenAI({
-        apiKey,
-        baseURL: DEEPSEEK_ENDPOINT,
-        fetch: contain(DEEPSEEK_ENDPOINT),
-      })(normalizedModelId);
     },
   };
 }

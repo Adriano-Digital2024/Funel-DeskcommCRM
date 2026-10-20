@@ -57,12 +57,6 @@ export interface LlmEdgeConfig {
    */
   openrouterApiKey?: string;
   /**
-   * Mesma ideia para a DeepSeek: sem ela, uma instalação que coloca a chave do
-   * DeepSeek no `.env` (e não cadastra BYOK pela tela) morreria com
-   * `LlmNotConfiguredError` em todo ponto que passa por este seam.
-   */
-  deepseekApiKey?: string;
-  /**
    * TTL do prefixo estável de cache (knob LLM_CACHE_TTL). Opcional para quem
    * monta a config na mão (testes) — o seam aplica a doutrina '1h' quando ausente.
    */
@@ -102,7 +96,6 @@ export function llmEdgeConfigFromEnv(env: {
   ANTHROPIC_API_KEY?: string;
   OPENAI_API_KEY?: string;
   OPENROUTER_API_KEY?: string;
-  DEEPSEEK_API_KEY?: string;
   LLM_CACHE_TTL?: string;
   AI_BUDGET_ENFORCEMENT?: string;
   DEEPSEEK_THINKING?: string;
@@ -119,7 +112,6 @@ export function llmEdgeConfigFromEnv(env: {
     ...(env.ANTHROPIC_API_KEY ? { anthropicApiKey: env.ANTHROPIC_API_KEY } : {}),
     ...(env.OPENAI_API_KEY ? { openaiApiKey: env.OPENAI_API_KEY } : {}),
     ...(env.OPENROUTER_API_KEY ? { openrouterApiKey: env.OPENROUTER_API_KEY } : {}),
-    ...(env.DEEPSEEK_API_KEY ? { deepseekApiKey: env.DEEPSEEK_API_KEY } : {}),
     cacheTtl: ttl,
     deepseekThinking: raciocinio,
     // Sem `if` de valor vazio, ao contrário das chaves acima: aqui o ausente
@@ -455,12 +447,7 @@ export async function resolveOrgLlmConfig(
     origemDaChave = 'chave_da_instalacao';
   } else if (provider === 'openrouter' && cfg.openrouterApiKey) {
     apiKey = cfg.openrouterApiKey;
-<<<<<<< HEAD
-  } else if (provider === 'deepseek' && cfg.deepseekApiKey) {
-    apiKey = cfg.deepseekApiKey;
-=======
     origemDaChave = 'chave_da_instalacao';
->>>>>>> upstream/main
   } else {
     throw new LlmNotConfiguredError();
   }

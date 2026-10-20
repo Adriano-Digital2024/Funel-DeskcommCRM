@@ -32,10 +32,7 @@ import { generateText, stepCountIs, streamText, type LanguageModel, type StopCon
 import {
   cabecalhosDeAtribuicaoOpenRouter,
   DEEPSEEK_ENDPOINT,
-<<<<<<< HEAD
-=======
   OPENAI_CODEX_ENDPOINT,
->>>>>>> upstream/main
   OPENROUTER_ENDPOINT,
   REQUESTY_ENDPOINT,
 } from "@/lib/agent-engine/edge/llm/providers";
@@ -171,12 +168,9 @@ function buildSentinelRegex(keywords: string[]): RegExp | null {
  * lá não existe faria o ensaio passar e a mensagem real falhar.
  */
 export function chaveDePlataforma(provider: string): string | null {
-  const nome = {
-    anthropic: "ANTHROPIC_API_KEY",
-    openai: "OPENAI_API_KEY",
-    openrouter: "OPENROUTER_API_KEY",
-    deepseek: "DEEPSEEK_API_KEY",
-  }[provider];
+  const nome = { anthropic: "ANTHROPIC_API_KEY", openai: "OPENAI_API_KEY", openrouter: "OPENROUTER_API_KEY" }[
+    provider
+  ];
   if (!nome) return null;
   const v = (process.env[nome] ?? "").trim();
   return v === "" ? null : v;
@@ -225,12 +219,6 @@ export function buildModel(
         apiKey,
         baseURL: OPENROUTER_ENDPOINT,
         headers: cabecalhosDeAtribuicaoOpenRouter(),
-<<<<<<< HEAD
-      })(modelId);
-    case "deepseek":
-      const normalizedModelId = modelId.startsWith('deepseek/') ? modelId.slice('deepseek/'.length) : modelId;
-      return createOpenAI({ apiKey, baseURL: DEEPSEEK_ENDPOINT })(normalizedModelId);
-=======
       }).chat(modelId); // chat/completions: a OpenRouter não serve /responses para todo modelo (#1130)
     // Mesma fábrica OpenAI-compatível que o registry de produção usa. Sem este
     // caso, o dono que publicou em DeepSeek receberia `unsupported_provider` no
@@ -254,7 +242,6 @@ export function buildModel(
       // Endereço escolhido pela empresa: mesma régua de destino do turno do
       // agente (`providers.ts`), senão o ensaio seria a porta para a rede interna.
       return createOpenAI({ apiKey, baseURL: baseUrl, fetch: fetchParaDestinoDaOrganizacao() }).chat(modelId);
->>>>>>> upstream/main
     default:
       throw new Error(`unsupported_provider: ${provider}`);
   }

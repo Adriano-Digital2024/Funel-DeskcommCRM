@@ -33,14 +33,9 @@ import { fail } from "@/lib/api/wrappers";
 import { appDaMeta } from "@/lib/channels/meta/app";
 import { lerEnvelopeMeta } from "@/lib/channels/meta/envelope";
 import { parseMetaWebhook, verificationChallenge, verifyMetaSignature } from "@/lib/channels/meta/webhook";
-<<<<<<< HEAD
-import { ingestMetaInbound } from "@/lib/channels/meta/ingest";
-import { metaSessionByWebhookToken, metaSessionByPhoneNumberId } from "@/lib/channels/meta/session";
-=======
 import { statusUpdate } from "@/lib/channels/meta/status-update";
 import { ingestMetaAppContactSync, ingestMetaEcho, ingestMetaInbound } from "@/lib/channels/meta/ingest";
 import { metaSessionByWebhookToken } from "@/lib/channels/meta/session";
->>>>>>> upstream/main
 import { logger } from "@/lib/logger";
 import {
   emitirFalhaDeEntrega,
@@ -59,20 +54,7 @@ interface RouteCtx {
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse> {
   const { token } = await ctx.params;
   const session = await metaSessionByWebhookToken(token);
-  if (!session) {
-    // Se o token do path não casa com nenhuma sessão, aceita o handshake
-    // sempre que o verify_token bater. O Meta chama GET uma única vez
-    // durante a configuração — se falhar, o webhook nunca recebe nada.
-    const challenge = verificationChallenge(
-      req.nextUrl.searchParams,
-      process.env.META_WEBHOOK_VERIFY_TOKEN ?? "",
-    );
-    if (challenge === null) return new NextResponse("forbidden", { status: 403 });
-    return new NextResponse(challenge, {
-      status: 200,
-      headers: { "content-type": "text/plain" },
-    });
-  }
+  if (!session) return new NextResponse("not found", { status: 404 });
 
   // Do BANCO (platform_meta_app, migration 0257), com o `.env` como piso: é a
   // credencial da INSTALAÇÃO inteira, não da organização — e um clone que ainda
@@ -93,8 +75,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const requestId = randomUUID();
   const { token } = await ctx.params;
 
-  // 1. Tenta resolver pelo token do path (fluxo normal).
-  let session = await metaSessionByWebhookToken(token);
+  const session = await metaSessionByWebhookToken(token);
+  if (!session) return fail("not_found", "unknown webhook token", 404, { requestId });
 
   const rawBody = await req.text();
   // Do mesmo lugar que o handshake: BANCO primeiro, `.env` como piso (0257). Sem
@@ -103,31 +85,6 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const { appSecret } = await appDaMeta();
   if (!verifyMetaSignature(rawBody, req.headers.get("x-hub-signature-256"), appSecret ?? "")) {
     return fail("unauthorized", "invalid_signature", 401, { requestId });
-  }
-
-  // 2. Se o token do path não casou, tenta pelo phone_number_id do payload.
-  //    Isso acontece quando o canal foi reconectado e gerou um novo
-  //    webhook_path_token — o Meta ainda aponta para o antigo.
-  if (!session) {
-    const leituraFallback = lerEnvelopeMeta(rawBody);
-    if (leituraFallback.ok) {
-      const eventosFallback = parseMetaWebhook(leituraFallback.envelope);
-      const inboundEvent = eventosFallback.find((e) => e.kind === "inbound_message");
-      const phoneId = inboundEvent?.phoneNumberId;
-      if (phoneId) {
-        session = await metaSessionByPhoneNumberId(phoneId);
-        if (session) {
-          logger.warn("[meta.webhook] sessão resolvida por phone_number_id (token do path não casou)", {
-            request_id: requestId,
-            phone_number_id: phoneId,
-            session_id: session.id,
-          });
-        }
-      }
-    }
-    if (!session) {
-      return fail("not_found", "unknown webhook token", 404, { requestId });
-    }
   }
 
   // ─── O contrato do fio, ANTES do parser ───────────────────────────────────
@@ -161,13 +118,6 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const eventos = parseMetaWebhook(leitura.envelope);
   const admin = createAdminClient();
   const now = new Date().toISOString();
-
-  logger.warn("[meta.webhook] eventos parseados", {
-    request_id: requestId,
-    count: eventos.length,
-    kinds: eventos.map((e) => e.kind),
-    session_id: session.id,
-  });
   /**
    * Desfecho de cada ingestão. Existe porque a versão anterior fazia
    * `await ingestMetaInbound(...)` e DESCARTAVA o retorno: um insert que falhava
@@ -177,37 +127,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   const desfechos: string[] = [];
 
   for (const e of eventos) {
-    // ─── Resolução de sessão ───────────────────────────────────────────────
-    // A Meta Cloud API entrega webhooks de TODOS os WABAs do app numa URL
-    // ÚNICA. O token do path resolve a sessão "primária" (a que o operador
-    // configurou), mas eventos de outros WABAs sob o mesmo app chegam na
-    // mesma URL e precisam ser roteados pela sessão correta.
-    //
-    // Segurança: a ORGANIZAÇÃO vem do token (fonte confiável). O
-    // phone_number_id do payload resolve QUAL sessão daquela organização
-    // recebeu. Duas organizações com o mesmo número continuam protegidas
-    // pelo índice único parcial (migration 0165) — a query não cruza orgs.
-    let effectiveSession = session;
-    if (session.wabaId && e.wabaId && e.wabaId !== session.wabaId) {
-      // WABA diferente: tenta resolver pelo phone_number_id do evento.
-      const resolved = await metaSessionByPhoneNumberId(
-        "phoneNumberId" in e ? (e as { phoneNumberId: string }).phoneNumberId : "",
-      );
-      if (resolved && resolved.organizationId === session.organizationId) {
-        effectiveSession = resolved;
-      } else {
-        // Sem sessão para este número nesta organização: ignora.
-        continue;
-      }
-    }
-
-    logger.warn("[meta.webhook] processando evento", {
-      request_id: requestId,
-      kind: e.kind,
-      waba_id: e.wabaId,
-      session_id: effectiveSession.id,
-      external_id: "externalId" in e ? e.externalId : undefined,
-    });
+    // O evento chega carimbado com a WABA; se não for a desta sessão, ignoramos.
+    // Confiar no `entry.id` para escolher a org seria aceitar o corpo como fonte.
+    if (session.wabaId && e.wabaId && e.wabaId !== session.wabaId) continue;
 
     if (e.kind === "inbound_message") {
       // A metade que faltava: mensagem do contato vira linha no inbox, move lead,
@@ -218,7 +140,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       // resolvia a sessão só pelo `phone_number_id` do payload — e duas
       // organizações com o mesmo número faziam a mensagem ser descartada para
       // as duas, com 200 na resposta (issue #236).
-      const r = await ingestMetaInbound(admin, e, { organizationId: effectiveSession.organizationId });
+      const r = await ingestMetaInbound(admin, e, { organizationId: session.organizationId });
       desfechos.push(r.status);
       if (r.status === "failed" || r.status === "no_session") {
         // 2xx continua (a Meta re-entregaria em loop), mas a falha NÃO fica muda:
@@ -275,7 +197,7 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       await admin
         .from("meta_templates")
         .update({ status: e.event, rejected_reason: e.reason, updated_at: now })
-        .eq("organization_id", effectiveSession.organizationId)
+        .eq("organization_id", session.organizationId)
         .eq("waba_id", e.wabaId)
         .eq("name", e.templateName)
         .eq("language", e.templateLanguage);
@@ -332,13 +254,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
       // `lib/channels/meta/status-update.ts`.
       await admin
         .from("messages")
-<<<<<<< HEAD
-        .update({ status: e.status === "failed" ? "failed" : "sent", updated_at: now })
-        .eq("organization_id", effectiveSession.organizationId)
-=======
         .update(statusUpdate(e, now))
         .eq("organization_id", session.organizationId)
->>>>>>> upstream/main
         .eq("external_id", e.externalId);
     }
   }

@@ -32,14 +32,9 @@ import { decryptKey, byteaToBuffer } from "@/lib/crypto/aes_gcm";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-<<<<<<< HEAD
-import { DEEPSEEK_ENDPOINT } from "@/lib/agent-engine/edge/llm/providers";
-import { OPENROUTER_BASE_URL, resolveLanguageModel, type ModelId } from "./gateway";
-=======
 import { escolherModeloNoCatalogo } from "./agents/escolher-modelo";
 import { DEFAULT_CLASSIFIER_MODEL, OPENROUTER_BASE_URL, resolveLanguageModel, type ModelId } from "./gateway";
 import { logarResolucaoDeModelo, provedorNaturalDoModelo, validarParProvedorModelo } from "./par-provedor-modelo";
->>>>>>> upstream/main
 
 export interface ModeloResolvido {
   model: LanguageModel;
@@ -826,11 +821,6 @@ function instanciar(
     case "google":
       return createGoogleGenerativeAI({ apiKey })(modelId);
     case "openrouter":
-<<<<<<< HEAD
-      return createOpenAI({ apiKey, baseURL: baseUrl ?? OPENROUTER_BASE_URL })(modelId);
-    case "deepseek":
-      return createOpenAI({ apiKey, baseURL: DEEPSEEK_ENDPOINT })(modelId);
-=======
       return createOpenAI({ apiKey, baseURL: baseUrl ?? OPENROUTER_BASE_URL }).chat(modelId); // ver providers.ts
     // A DeepSeek fala a API da OpenAI. Sem este caso, uma organização em
     // DeepSeek cairia no `default` (null) e a pilha antiga seguiria para o
@@ -847,7 +837,6 @@ function instanciar(
       return baseUrl
         ? createOpenAI({ apiKey, baseURL: baseUrl, fetch: fetchParaDestinoDaOrganizacao() }).chat(modelId)
         : null;
->>>>>>> upstream/main
     default:
       return null;
   }

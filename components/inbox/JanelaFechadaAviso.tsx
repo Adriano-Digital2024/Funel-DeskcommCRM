@@ -4,12 +4,7 @@ import { toast } from "sonner";
 import { useT } from "@/hooks/i18n/useT";
 
 import { Button } from "@/components/ui/button";
-<<<<<<< HEAD
-import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
-=======
 import { useQuery, useQueryClient } from "@tanstack/react-query";
->>>>>>> upstream/main
 
 import { apiClient } from "@/lib/api/client";
 import { useSendMessage } from "@/hooks/inbox/useSendMessage";
@@ -321,14 +316,10 @@ export function JanelaFechadaAviso({
   const t = useT();
   const send = useSendMessage();
   const [escolhido, setEscolhido] = useState("");
-<<<<<<< HEAD
-  const [valoresParametros, setValoresParametros] = useState<Record<string, string>>({});
-=======
   const [valores, setValores] = useState<Record<string, string>>({});
   /** Chaves cujo valor o operador pediu para salvar no modelo. */
   const [salvar, setSalvar] = useState<Record<string, boolean>>({});
   const qc = useQueryClient();
->>>>>>> upstream/main
 
   const fonte = fonteDeTemplates(provider);
   const { data } = useQuery({
@@ -416,11 +407,7 @@ export function JanelaFechadaAviso({
         // O texto renderizado é também o que a conversa mostra depois: é o
         // mesmo caminho que o agente já usa quando manda modelo.
         body: textoDoModelo(atual),
-<<<<<<< HEAD
-        ...(pedeParametros ? { template_values: valoresParametros } : {}),
-=======
         template_values: valores,
->>>>>>> upstream/main
       },
       {
         // ─── 2xx NÃO é "saiu" ────────────────────────────────────────────────
@@ -440,12 +427,8 @@ export function JanelaFechadaAviso({
           }
           salvarNoModelo(modelo, enviados);
           setEscolhido("");
-<<<<<<< HEAD
-          setValoresParametros({});
-=======
           setValores({});
           setSalvar({});
->>>>>>> upstream/main
           toast.success(t("Modelo enviado — a janela reabre quando o cliente responder."));
         },
         onError: (e: unknown) =>
@@ -500,33 +483,6 @@ export function JanelaFechadaAviso({
         </div>
       )}
 
-<<<<<<< HEAD
-      {pedeParametros && (
-        <div className="mt-3 space-y-2">
-          <p className="text-[11px] text-amber-900/80 dark:text-amber-200/80">
-            {t("Este modelo pede")} {atual?.slots?.length} {t("parâmetro(s). Preencha abaixo:")}
-          </p>
-          {(atual?.slots ?? []).map((slot) => {
-            const s = slot as { key: string; onde: string };
-            return (
-              <div key={s.key} className="flex items-center gap-2">
-                <label className="text-[11px] text-amber-900/80 dark:text-amber-200/80 whitespace-nowrap">
-                  {s.onde} {{1: "1", 2: "2", 3: "3"}[s.key] ?? s.key}:
-                </label>
-                <Input
-                  type="text"
-                  value={valoresParametros[s.key] ?? ""}
-                  onChange={(e) =>
-                    setValoresParametros((prev) => ({ ...prev, [s.key]: e.target.value }))
-                  }
-                  placeholder={`{{${s.key}}}`}
-                  className="h-7 flex-1 text-xs"
-                  disabled={send.isPending}
-                />
-              </div>
-            );
-          })}
-=======
       {/* A prévia vem ANTES dos campos: escolher o modelo mostra na hora como a
           mensagem vai ficar para o cliente, e os `{{n}}` destacados dizem o que
           ainda falta preencher — a pergunta que antes só se respondia depois do
@@ -579,7 +535,6 @@ export function JanelaFechadaAviso({
               {t("A mídia do modelo entra por link público — a plataforma baixa o arquivo na hora do envio.")}
             </p>
           )}
->>>>>>> upstream/main
         </div>
       )}
     </div>

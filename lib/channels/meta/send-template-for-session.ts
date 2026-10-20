@@ -15,19 +15,16 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-<<<<<<< HEAD
-import { createAdminClient } from "@/lib/supabase/admin";
-=======
 import { graphVersion } from "@/lib/graph-version";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { linhaDoEspelho } from "../linha-do-espelho";
 
->>>>>>> upstream/main
 import { resolveMetaCreds } from "./credentials";
 import { sendTemplate } from "./send-template";
 
 export interface SendTemplateForSessionInput {
+  beforeSend?: () => Promise<void>;
   organizationId: string;
   /**
    * `channel_sessions.meta_phone_number_id` DESTA conexão — o `sessionRef` do canal
@@ -45,9 +42,6 @@ export interface SendTemplateForSessionInput {
   name: string;
   language: string;
   values: Record<string, string>;
-<<<<<<< HEAD
-  beforeSend?: () => Promise<void>; 
-=======
   /**
    * Transporte explícito. Ausente = credencial da Meta (sessão, com o ambiente
    * de reserva). Presente = canal Graph-compatível (parceiro), com host e token
@@ -63,7 +57,6 @@ export interface SendTemplateForSessionInput {
   };
   /** Conexão dona da definição — restringe o `meta_templates` a ela. */
   channelSessionId?: string | null;
->>>>>>> upstream/main
 }
 
 /**
@@ -82,20 +75,6 @@ export async function sendTemplateForSession(
     throw new Error("template_incompleto: nome e idioma são obrigatórios em type=template");
   }
 
-<<<<<<< HEAD
-  // Executa beforeSend se fornecido
-  if (input.beforeSend) {
-    await input.beforeSend();
-  }
-
-  const { data: linha, error } = await db
-    .from("meta_templates")
-    .select("name, language, status, contract_hash, components")
-    .eq("organization_id", input.organizationId)
-    .eq("name", input.name)
-    .eq("language", input.language)
-    .maybeSingle();
-=======
   // A credencial vem da SESSÃO (o que o operador salvou na tela de conexão) e o
   // ambiente fica só como RESERVA — a mesma porta que `send`, `checkHealth` e
   // `fetchInboundMedia` já usam. Antes disto este caminho lia
@@ -144,43 +123,15 @@ export async function sendTemplateForSession(
     language: input.language,
     channelSessionId: input.channelSessionId,
   });
->>>>>>> upstream/main
 
   if (error) throw new Error(`template_lookup_failed: ${error.message}`);
 
-  // Resolver credenciais da sessão (sessão primeiro, env como fallback)
-  const admin = createAdminClient();
-  const { data: sessao } = await admin
-    .from("channel_sessions")
-    .select("meta_phone_number_id")
-    .eq("organization_id", input.organizationId)
-    .eq("provider", "meta_cloud")
-    .is("archived_at", null)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  const phoneNumberId = sessao?.meta_phone_number_id;
-  if (!phoneNumberId) {
-    throw new Error("meta_not_configured: nenhuma sessão ativa com phone_number_id para esta organização");
-  }
-
-  const creds = await resolveMetaCreds(admin, {
-    organizationId: input.organizationId,
-    phoneNumberId,
-  });
-  if (!creds) {
-    throw new Error("meta_not_configured: nenhuma credencial para este número (nem na sessão, nem no ambiente)");
-  }
-
+  await input.beforeSend?.();
   const resultado = await sendTemplate({
     phoneNumberId: creds.phoneNumberId,
     token: creds.token,
     graphVersion: creds.graphVersion,
-<<<<<<< HEAD
-=======
     ...(input.transport?.graphBase ? { graphBase: input.transport.graphBase } : {}),
->>>>>>> upstream/main
     to: input.to,
     binding: {
       name: input.name,

@@ -137,29 +137,6 @@ describe("adapter meta_cloud — endereçamento", () => {
 });
 
 describe("adapter meta_cloud — configuração", () => {
-<<<<<<< HEAD
-  it("isConfigured sempre true — a credencial vive na sessão (banco), não no env", () => {
-    vi.stubEnv("META_PHONE_NUMBER_ID", "");
-    vi.stubEnv("META_SYSTEM_USER_TOKEN", "");
-    expect(a().isConfigured()).toBe(true);
-  });
-
-  it("sem credencial no env NEM na sessão, o envio LANÇA", async () => {
-    // Segue o padrão do canal intermediado (zernio): isConfigured=true, send lança
-    // quando não há credencial nem na sessão nem no ambiente. O handler grava
-    // `failed` com motivo, em vez de `queued` sem erro.
-    vi.stubEnv("META_PHONE_NUMBER_ID", "");
-    vi.stubEnv("META_SYSTEM_USER_TOKEN", "");
-    sessaoNoBanco.token = null;
-    await expect(
-      a().send({ organizationId: ORG, sessionRef: "x", to: "5531999", kind: "text", body: "oi" }),
-    ).rejects.toThrow("meta_not_configured");
-  });
-
-  it("com credencial no env, está configurado", () => {
-    configurar();
-    expect(a().isConfigured()).toBe(true);
-=======
   it("isConfigured é SEMPRE true — a credencial pode viver na sessão, e isto é síncrono", () => {
     // O contrato anterior ("sem env → false") travava em `queued` toda
     // instalação que conectou o número pela TELA: o pre-check respondia "não
@@ -184,7 +161,6 @@ describe("adapter meta_cloud — configuração", () => {
       a().send({ organizationId: ORG, sessionRef: "x", to: "5531999", kind: "text", body: "oi" }),
     ).rejects.toThrow(/meta_not_configured/);
     expect(spy).not.toHaveBeenCalled();
->>>>>>> upstream/main
   });
 
   it("os códigos carregam o nome do provider — por isso vivem no adapter", () => {

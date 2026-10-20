@@ -2,21 +2,8 @@
  * ai-sentiment-worker — classifies the sentiment of inbound messages.
  *
  * Consumes `message.received` events (parallel to ai-response-worker).
- * Uses a provider-agnostic generateText + strict JSON contract (validated by a
- * Zod schema) so the result is always typed — e o classificador roda também em
- * provedores que não expõem `generateObject`/saída estruturada (DeepSeek).
- *
- * ## Por que não `generateObject`
- *
- * O `generateObject` do AI SDK depende de o provider suportar saída estruturada
- * (json_schema no OpenAI-compat, tool_use no Anthropic). O DeepSeek — o provider
- * desta instalação — responde 200 com texto corrido e o SDK devolve
- * "No object generated: the model did not return a response." Medido em
- * produção (2026-09-09): binding sentiment_classify→deepseek ativo, a chamada
- * chegava ao provider e o object nunca vinha. Aqui o texto é gerado por
- * `generateText` (que o DeepSeek executa — é o mesmo caminho do seam do agente)
- * e o JSON é extraído e validado pelo schema. Mesmo contrato de saída, sem
- * depender do modo estruturado do provider.
+ * Uses `anthropic/claude-haiku-4-5` via Vercel AI Gateway with generateObject
+ * and a strict Zod schema so the result is always typed.
  *
  * Com o Jev (System One) ligado em `organizations.settings.jev`, ele mede
  * primeiro — ver o bloco "O Jev primeiro" no meio do arquivo. E, na mesma
@@ -32,11 +19,7 @@
  * - `console.log` is forbidden — only `console.warn`/`console.error` with prefix.
  */
 
-<<<<<<< HEAD
-import { generateText } from "ai";
-=======
 import { generateObject, type LanguageModel } from "ai";
->>>>>>> upstream/main
 import { z } from "zod";
 
 import { costCents } from "@/lib/agent-engine/edge/llm/pricing";
@@ -54,11 +37,7 @@ import { avisarAEquipe, TAREFAS_DOS_PEDIDOS, type PedidosObservados } from "@/li
 import { estadoEfetivoDaTarefa, TAREFA_DO_CLIMA } from "@/lib/ai/decisao/tarefas";
 import { codigoDoErroDoJev } from "@/lib/ai/decisao/textos";
 import { decidirElegibilidadeDaConversaViaSupabase } from "@/lib/ai/elegibilidade/consulta-supabase";
-<<<<<<< HEAD
-import { ttlDaAutorizacaoMs } from "@/lib/ai/elegibilidade/gate";
-=======
 import { ttlDaAutorizacaoMs, type DecisaoDeElegibilidade } from "@/lib/ai/elegibilidade/gate";
->>>>>>> upstream/main
 import { DEFAULT_CLASSIFIER_MODEL } from "@/lib/ai/gateway";
 import { resolverModeloDoPonto } from "@/lib/ai/gateway-binding";
 import { logInvocation, type LogInvocationInput } from "@/lib/ai/log-invocation";
@@ -99,27 +78,6 @@ const sentimentSchema = z.object({
     .describe("Justificativa curta da nota, em NO MÁXIMO 100 caracteres"),
 });
 
-/**
- * Extrai e valida o JSON do texto do modelo. Tolerante a cercas markdown e a
- * texto antes/depois do objeto — modelo não é parser. Devolve o objeto já
- * validado pelo schema; lança com mensagem curta (vira finish_reason='error').
- */
-function validarSentimentoDoTexto(texto: string): z.infer<typeof sentimentSchema> {
-  const inicio = texto.indexOf("{");
-  const fim = texto.lastIndexOf("}");
-  if (inicio === -1 || fim === -1 || fim < inicio) {
-    throw new Error("No object generated: resposta sem objeto JSON.");
-  }
-  const cru: unknown = JSON.parse(texto.slice(inicio, fim + 1));
-  const parsed = sentimentSchema.safeParse(cru);
-  if (!parsed.success) {
-    throw new Error(
-      `No object generated: resposta não casou o schema (${parsed.error.issues.length} problema(s)).`,
-    );
-  }
-  return parsed.data;
-}
-
 export interface SentimentResult {
   skipped: boolean;
   reason?: string;
@@ -128,36 +86,6 @@ export interface SentimentResult {
 
 export async function processSentiment(event: EventRow): Promise<SentimentResult> {
   try {
-<<<<<<< HEAD
-    // SEM guard `isAiGatewayConfigured()` aqui. Aquele teste só olhava as chaves
-    // do .env — e uma instalação que roda 100% por credencial/binding da
-    // organização (DeepSeek cadastrado pela tela) não tem chave de env, então o
-    // guard matava o ponto ANTES de consultar o resolvedor (medido: drain
-    // devolvia ai_gateway_key_missing com binding ativo). A autoridade é o
-    // resolvedor abaixo: binding do painel → credencial da organização → chave
-    // da instalação. Ele devolve null quando nada existe, e o skip é decidido lá.
-
-    // Passar SENTIMENT_MODEL como string cai no gateway da Vercel mesmo sem
-    // chave (plano anônimo) e devolve "Unauthenticated ... Configure
-    // AI_GATEWAY_API_KEY" — o que quebrava este worker em toda instalação que
-    // só tem ANTHROPIC_API_KEY, ou seja, o padrão do install.sh. O resolver
-    // devolve o provider certo para a chave que existir.
-    // O painel de provedores manda AQUI também. Sem esta linha, a tela
-    // oferecia "Medir o clima da conversa", aceitava a escolha e dizia
-    // "salvo" — e este worker seguia usando o modelo padrão. Botão que não
-    // controla nada é pior que botão ausente: gasta a confiança de quem clicou.
-    const resolvido = await resolverModeloDoPonto(
-      "sentiment_classify",
-      event.organization_id,
-      SENTIMENT_MODEL,
-    );
-    if (!resolvido) {
-      return { skipped: true, reason: "ai_gateway_key_missing" };
-    }
-    const sentimentModel = resolvido.model;
-
-=======
->>>>>>> upstream/main
     const messageId =
       (event.payload?.["message_id"] as string | undefined) ?? event.entity_id ?? null;
     const conversationId = (event.payload?.["conversation_id"] as string | undefined) ?? null;
@@ -340,100 +268,7 @@ export async function processSentiment(event: EventRow): Promise<SentimentResult
         ? agentConfig["sentiment_threshold"]
         : DEFAULT_SENTIMENT_THRESHOLD;
 
-<<<<<<< HEAD
-    // ── Call LLM ──────────────────────────────────────────────────────────
-    const abortController = new AbortController();
-    const timeout = setTimeout(() => abortController.abort(), CLASSIFY_TIMEOUT_MS);
-
-    const start = Date.now();
-    let result: z.infer<typeof sentimentSchema>;
-    let promptTokens = 0;
-    let completionTokens = 0;
-
-    try {
-      // `generateText` + JSON estrito em vez de `generateObject`: o DeepSeek
-      // não devolve saída estruturada (json_schema/tool_use) e o generateObject
-      // morria com "No object generated" (ver cabeçalho). Texto cru o DeepSeek
-      // gera — mesmo caminho do seam do agente. 256 tokens seguram o custo; o
-      // JSON de um score + justificativa curta cabe folgado (pico medido: 146).
-      const generated = await generateText({
-        model: sentimentModel,
-        system: SENTIMENT_SYSTEM_PROMPT,
-        prompt: body,
-        temperature: 0,
-        maxOutputTokens: 256,
-        abortSignal: abortController.signal,
-      });
-
-      result = validarSentimentoDoTexto(generated.text);
-
-      const usage = generated.usage as
-        | {
-            inputTokens?: number;
-            outputTokens?: number;
-            promptTokens?: number;
-            completionTokens?: number;
-          }
-        | undefined;
-      promptTokens = usage?.inputTokens ?? usage?.promptTokens ?? 0;
-      completionTokens = usage?.outputTokens ?? usage?.completionTokens ?? 0;
-    } catch (err) {
-      // A FALHA também vira linha em `llm_calls`. A 0128 fez isso para o seam do
-      // agent-engine, e este worker não passa por lá — então, até aqui, escolher
-      // no painel um modelo que não existe fazia toda classificação falhar sem
-      // deixar rastro nenhum: a tela de Execuções, cuja razão de existir é
-      // responder "por que falhou", não mostrava nada para este ponto, com o
-      // painel dizendo que estava configurado.
-      //
-      // O `throw` mantém o desfecho de antes — quem decide o retorno continua
-      // sendo o catch global, que nunca deixa este worker derrubar o bot.
-      logInvocation({
-        organization_id: event.organization_id,
-        agent_id: agent?.id ?? null,
-        conversation_id: conversationId ?? message.conversation_id ?? null,
-        message_id: messageId,
-        invocation_kind: "sentiment_classify",
-        model: resolvido.modelId,
-        prompt_tokens: promptTokens,
-        completion_tokens: completionTokens,
-        latency_ms: Date.now() - start,
-        cost_cents: 0,
-        finish_reason: "error",
-        error_payload: { message: err instanceof Error ? err.message : String(err) },
-      });
-      throw err;
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    const latencyMs = Date.now() - start;
-
-    // ── Merge sentiment into messages.metadata ────────────────────────────
-    const existingMetadata = (message.metadata as Record<string, unknown> | null) ?? {};
-    const updatedMetadata = {
-      ...existingMetadata,
-      sentiment_score: result.sentiment_score,
-      sentiment_latency_ms: latencyMs,
-    };
-
-    const { error: updateErr } = await admin
-      .from("messages")
-      .update({ metadata: updatedMetadata })
-      .eq("id", messageId)
-      .eq("organization_id", event.organization_id);
-
-    if (updateErr) {
-      console.warn("[ai-sentiment-worker] metadata update failed", {
-        message_id: messageId,
-        error: updateErr.message,
-      });
-    }
-
-    // ── Log invocation (fire-and-forget) ──────────────────────────────────
-    logInvocation({
-=======
     const comum = {
->>>>>>> upstream/main
       organization_id: event.organization_id,
       // `null`, não `""` (issue #160): o worker roda mesmo sem agente ativo — lê
       // o agente só para o threshold e cai no default —, e string vazia numa

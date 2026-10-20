@@ -68,24 +68,6 @@ export function useSyncTemplates() {
   });
 }
 
-<<<<<<< HEAD
-export function useCreateMetaTemplate() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (draft: {
-      name: string;
-      language: string;
-      category: string;
-      components: unknown[];
-    }) =>
-      apiClient.post<{ data: SyncCounts }>("/api/v1/channels/templates", {
-        acao: "criar",
-        ...draft,
-      }),
-    onError: showApiError,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["channel-templates"] });
-=======
 /**
  * Grava (ou esquece, com string vazia) o link de mídia do modelo. Invalida
  * também a lista do painel da janela fechada, que lê a mesma rota com outra
@@ -104,7 +86,6 @@ export function useSaveTemplateValues() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["channel-templates"] });
       qc.invalidateQueries({ queryKey: ["templates-da-conversa"] });
->>>>>>> upstream/main
     },
   });
 }

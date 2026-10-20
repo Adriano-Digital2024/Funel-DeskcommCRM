@@ -5,15 +5,11 @@ import { createDefaultRegistry } from "@/lib/agent-engine/edge/llm/providers";
 describe("createDefaultRegistry", () => {
   it("registra os providers que a tela oferece", () => {
     // Eram três até a migration 0127 abrir `provider` como vocabulário aberto e
-    // a OpenRouter entrar; a 0204 adicionou o DeepSeek. A lista fica travada
-    // aqui de propósito: provider novo no registry sem entrada em
-    // `lib/ai/pontos/provedores.ts` é código que ninguém alcança pela tela, e o
-    // inverso é uma tela que oferece o que toda chamada recusaria. O par é
-    // vigiado por provedores-x-registry.test.ts.
+    // a OpenRouter entrar. A lista fica travada aqui de propósito: provider
+    // novo no registry sem entrada em `lib/ai/pontos/provedores.ts` é código
+    // que ninguém alcança pela tela, e o inverso é uma tela que oferece o que
+    // toda chamada recusaria. O par é vigiado por provedores-x-registry.test.ts.
     const reg = createDefaultRegistry();
-<<<<<<< HEAD
-    expect(Object.keys(reg).sort()).toEqual(["anthropic", "deepseek", "google", "openai", "openrouter"]);
-=======
     expect(Object.keys(reg).sort()).toEqual([
       "anthropic",
       // Provedor personalizado (#1642): endpoint do operador, sem endpoint
@@ -28,7 +24,6 @@ describe("createDefaultRegistry", () => {
       "openrouter",
       "requesty",
     ]);
->>>>>>> upstream/main
   });
   it("cada factory produz um LanguageModel (não lança ao instanciar)", () => {
     const reg = createDefaultRegistry();
@@ -40,9 +35,6 @@ describe("createDefaultRegistry", () => {
     expect(() => reg.requesty!("k", "openai/gpt-4o-mini")).not.toThrow();
     // Endpoint próprio (gateway compatível, ou modelo local no roteiro).
     expect(() => reg.openrouter!("k", "x/y", "https://gateway.exemplo/v1")).not.toThrow();
-<<<<<<< HEAD
-    expect(() => reg.deepseek!("k", "DeepSeek-V4-Flash-0731")).not.toThrow();
-=======
     expect(() => reg.deepseek!("k", "deepseek-flash", "https://gateway.exemplo/v1")).not.toThrow();
     expect(() => reg.requesty!("k", "openai/gpt-4o-mini", "https://gateway.exemplo/v1")).not.toThrow();
   });
@@ -55,6 +47,5 @@ describe("createDefaultRegistry", () => {
     const reg = createDefaultRegistry();
     const modelo = reg.openrouter!("k", "google/gemini-2.5-flash-lite") as { provider?: string };
     expect(modelo.provider).toBe("openai.chat");
->>>>>>> upstream/main
   });
 });
