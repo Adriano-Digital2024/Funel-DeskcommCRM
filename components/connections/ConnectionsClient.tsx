@@ -29,6 +29,7 @@ import { AntiBanSheet } from "./AntiBanSheet";
 import { GruposSheet } from "./GruposSheet";
 import { PairingOptions } from "./PairingOptions";
 import { ChannelAcervo } from "./ChannelAcervo";
+import { ChannelHistorico } from "./ChannelHistorico";
 import { ChannelAiAccess } from "./ChannelAiAccess";
 import { ParaIntegrar } from "./ParaIntegrar";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,7 @@ import { fonteDeTemplates } from "@/lib/channels/templates-fonte";
 import { useT } from "@/hooks/i18n/useT";
 import { AgendaDePausa } from "@/components/connections/AgendaDePausa";
 import { RenomearConexao } from "./RenomearConexao";
+import { DefeitoDoNumero, numeroComDefeito } from "./DefeitoDoNumero";
 
 type Variant = "success" | "warning" | "error" | "neutral";
 
@@ -394,7 +396,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
               ? t("Nenhum número conectado ainda.")
               : `${list.length} ${list.length === 1 ? t("número conectado") : t("números conectados")}.`}
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {list.length > 0 && (
             <Button
               variant="outline"
@@ -497,7 +499,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
         if (await copyToClipboard(connectionDetail)) toast.success(t("Copiado!"));
         else toast.error(t("Não foi possível copiar. Selecione e copie manualmente."));
       }}>{t("Copiar detalhes")}</Button></details>}
-      <Link href="/app/settings/atendimento" className="text-sm underline">{t("Configurar responsáveis por número")}</Link>
+      <Link href="/app/settings/atendimento" className="text-sm underline max-md:flex max-md:min-h-11 max-md:items-center">{t("Configurar responsáveis por número")}</Link>
       {!wahaConfigured && (
         <div className="rounded-md border border-warning bg-warning-bg p-4 text-sm text-warning-fg">
           <p className="font-medium">{t("O serviço do WhatsApp não está configurado.")}</p>
@@ -559,7 +561,11 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {list.map((c) => {
-            const info = statusInfo(c.status, t);
+            // De pé com defeito (não recebe, envio restrito): o selo deixa de
+            // dizer "Conectado", e a linha logo abaixo diz o quê.
+            const info = numeroComDefeito(c.status, c.status_reason)
+              ? { label: t("Atenção"), variant: "warning" as const }
+              : statusInfo(c.status, t);
             const pausado = canalDesativado(c.metadata);
             const policy = routing.data?.data?.channels?.find((channel) => channel.id === c.id);
             // Sem o serviço no ar a rota de exclusão falha fechado (503) para
@@ -590,6 +596,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
                   <Badge variant={info.variant}>{info.label}</Badge>
                   {pausado && <Badge variant="neutral">{t("Pausado")}</Badge>}
                 </div>
+                <DefeitoDoNumero status={c.status} motivo={c.status_reason} />
                 <p className="text-[11px] text-muted-foreground">
                   {c.last_health_check_at
                     ? `${t("Verificado")} ${new Date(c.last_health_check_at).toLocaleString(tagDoIdioma)}`
@@ -597,6 +604,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
                 </p>
                 <ChannelAiAccess channelId={c.id} />
                 {dependeDoTransporte(c) && <ChannelAcervo channelId={c.id} />}
+                {dependeDoTransporte(c) && <ChannelHistorico channelId={c.id} />}
                 <p className="text-xs text-muted-foreground">{t(!policy ? "Consulte os responsáveis em Atendimento." : policy.mode === "legacy_unconfigured" ? "Usa todos os atendentes elegíveis da organização." : policy.mode === "restricted_empty" ? "Ninguém configurado — as conversas ficarão na fila." : "Somente as pessoas selecionadas recebem este número.")}</p>
                 <div className="mt-auto flex flex-wrap gap-2">
                   <RenomearConexao
@@ -923,7 +931,15 @@ function QrDialog({
       }
     };
     void poll();
-    const iv = setInterval(poll, 3000);
+    const iv = setInterval(() => {
+      // ABA OCULTA NÃO PERGUNTA (refs #2821, a convenção da casa): o pareamento
+      // é uma tela de espera — com a aba escondida ninguém está escaneando QR
+      // nenhum, e cada tick de 3 s custa uma consulta ao transporte. A guarda é
+      // a mesma do refetch de segurança (hooks/realtime/useRefetchDeSeguranca.ts):
+      // quem volta para a aba vê o estado no tick seguinte, em no máximo 3 s.
+      if (document.visibilityState !== "visible") return;
+      void poll();
+    }, 3000);
     return () => {
       cancelled = true;
       clearInterval(iv);

@@ -33,6 +33,12 @@ export const REFERENCIAS_DE_AVISO = {
   // O remédio é recarregar na conta do provedor, fora do CRM; a tela de
   // credenciais é onde se confere QUAL chave é, e onde se troca por outra.
   ai_provider_credential: { tabela: "ai_provider_credentials", papel: "admin", rotulo: "Revisar credencial", href: () => "/app/ai/credentials" },
+  // (migration 0655, issue #2529) A tarefa que vence ou que já venceu: o aviso
+  // de prazo leva ao TRABALHO que pede gente, e a lista de tarefas é onde ele
+  // está (o mesmo destino do push de tarefa criada, em
+  // `lib/tarefas/criar-tarefa.ts`). Sem referência o botão cairia na Central,
+  // meio caminho — quem recebe o aviso já está nela.
+  task: { tabela: "crm_tasks", papel: "agent", rotulo: "Abrir tarefa", href: () => "/app/tasks" },
 } satisfies Record<string, Alvo>;
 
 export type InboxRefKind = keyof typeof REFERENCIAS_DE_AVISO | "organization" | "ai_budget" | "plano" | "job_queue" | "cron_jobs";
@@ -168,6 +174,33 @@ export const POLITICAS_DE_AVISO = {
     orientacao: "Confirme com a pessoa que ela reconhece a troca. Se não reconhece, fale com quem administra o servidor.",
     geral: { papel: "admin", href: "/app/team", rotulo: "Abrir a equipe" },
   },
+  // Os dois avisos de prazo de tarefa (#2529) levam à tarefa, e a orientação
+  // diz as DUAS saídas possíveis — concluir ou reagendar — porque as duas são
+  // conclusões legítimas do aviso: ele não pede que a pessoa se desculpe pelo
+  // atraso, pede que o prazo volte a ser verdade.
+  task_due: {
+    refs: ["task"],
+    orientacao: "Abra a tarefa e conclua antes do prazo — ou reagende agora, se já dá para ver que não vai caber.",
+  },
+  task_overdue: {
+    refs: ["task"],
+    orientacao: "A tarefa venceu sem conclusão. Abra e conclua, ou reagende o prazo se ele não for mais possível.",
+  },
+  // Spec 32. O resumo nasce SEMPRE apontando para a conexão (`ref_kind: channel_session`),
+  // como o `canal_pausado` e o `canal_mudo_sem_numero` — por isso sem `geral`. Papel
+  // admin pela entrada `channel_session` de REFERENCIAS_DE_AVISO: é a conexão e o
+  // histórico dela que o administrador confere, não a conversa de um cliente.
+  recuperacao_da_queda: { refs: ["channel_session"], orientacao: "Confira em Conexões se o número voltou e se o histórico do período fora do ar entrou como esperado." },
+  // Spec 32. Nasce SEMPRE com `ref_kind: conversation` (a conversa recuperada), como o
+  // `message_send_stuck` e o `promise_unfulfilled`. Papel agent pela entrada
+  // `conversation`: quem pode ver a conversa pode responder; não há "dono" a quem
+  // mandar, porque a conversa recuperada pode não ter responsável.
+  cliente_sem_resposta_na_queda: { refs: ["conversation"], orientacao: "Abra a conversa e responda o cliente — ele escreveu enquanto o número estava fora do ar." },
+  // (migration 9027, issue #3371) O aviso nasce SEM referência: o que o conserta
+  // não é uma linha do banco, é o login da conta — e o login mora na tela de
+  // Credenciais. O botão diz o que fazer ("Reconectar"), não "revisar", porque
+  // nada há para inspecionar: a conta precisa ser conectada de novo.
+  assinatura_desconectada: { refs: [], orientacao: "A conta que paga a assinatura recusou o login. Reconecte em IA › Credenciais; este aviso se resolve sozinho quando o login voltar.", geral: { papel: "admin", href: "/app/ai/credentials", rotulo: "Reconectar a assinatura" } },
   other: { refs: ["agenda_reminder_sender", "lead", "channel_session", "appointment", "ai_agent", "ai_provider_credential", "agent_case"], orientacao: "Confira a situação descrita neste aviso com a pessoa responsável." },
 } satisfies Record<InboxKind, Politica>;
 
@@ -281,4 +314,23 @@ export async function resolverDestinosDosAvisos<T extends ReferenciaDoAviso>(
     }
     return { ...item, destination };
   });
+}
+
+/**
+ * O papel mínimo para enxergar a Central de avisos: a lista, o contador do sino,
+ * o resolver de um aviso e o "Marcar todos resolvidos" exigem este papel, e o
+ * push dos avisos (`lib/notifications/push-dos-avisos.ts`) usa o mesmo.
+ */
+export const PAPEL_MINIMO_DA_CENTRAL: Role = "agent";
+
+/**
+ * Quem ENXERGA um aviso da Central (migration 0689, doc de decisão 162): sem
+ * `para_user_id` é da empresa inteira; com ele, só daquela pessoa. É o filtro
+ * `.or()` do PostgREST que a lista, o contador do sino, o "Marcar todos
+ * resolvidos" e o resolver de um aviso aplicam — os quatro com o mesmo texto,
+ * para que o que a pessoa vê seja exatamente o que ela resolve. `userId` vem do
+ * JWT validado (`requireRole` → `getUser`), nunca do corpo.
+ */
+export function avisoVisivelPara(userId: string): string {
+  return `para_user_id.is.null,para_user_id.eq.${userId}`;
 }

@@ -127,7 +127,28 @@ const COPY: Record<string, { variant: Variant; msg?: string }> = {
   // TOM. Sem `msg` de propósito: a lista de agentes é contexto que nenhuma
   // frase genérica alcança.
   credential_in_use: { variant: "warning" },
+
+  // ---- Link de pagamento pelo dono (D-15) ----
+  //
+  // Recusa ROTINEIRA: a empresa ainda não tem administrador com e-mail para o
+  // cliente do provedor. O caminho é convidar um, e a rota já diz isso.
+  empresa_sem_email: { variant: "warning" },
 };
+
+/**
+ * `requestId` de um erro que NÃO é `ApiError`.
+ *
+ * O fallback do `toastFor` recebe `unknown` — o que sobrou depois de tudo o que
+ * não é `ApiError` (erro de rede do fetch, erro de um adaptador, um objeto
+ * lançado à mão). Alguns desses trazem `requestId`; quando trazem, o `ID:` tem
+ * de ir para a tela do mesmo jeito, senão o aviso genérico é o único caso em
+ * que quem pede ajuda fica sem o ID que existe no log (#3971).
+ */
+function requestIdDoErro(err: unknown): string | undefined {
+  if (typeof err !== "object" || err === null) return undefined;
+  const id = (err as { requestId?: unknown }).requestId;
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+}
 
 /**
  * `t` chega pronto de fora: `showApiError` resolve via `idiomaAtual()` (fora da
@@ -159,7 +180,13 @@ function toastFor(err: unknown, t: (texto: string) => string): void {
     toast.error(t(err.message) || err.code, { description });
     return;
   }
-  toast.error(t("Erro inesperado. Tente novamente."));
+  const requestId = requestIdDoErro(err);
+  const generico = t("Erro inesperado. Tente novamente.");
+  if (requestId) {
+    toast.error(generico, { description: `ID: ${requestId}` });
+    return;
+  }
+  toast.error(generico);
 }
 
 /**

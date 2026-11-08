@@ -192,11 +192,33 @@ describe("renomear/juntar/excluir relê todo cache que guarda o nome da etiqueta
 });
 
 describe("gatilho da cor no editor", () => {
-  it("é 28x28 também no desktop: o `lg:h-8` do size=sm não sobrevive", () => {
+  it("é 28x28 no desktop (o `lg:h-8` do size=sm não sobrevive) e 44x44 abaixo de `lg`, como o toque pede", () => {
     render(<SeletorDeCorDaEtiqueta cor={null} onChange={() => {}} />);
     const classes = screen.getByRole("button", { name: "Cor da etiqueta" }).className.split(/\s+/);
-    expect(classes).toContain("h-7");
-    expect(classes).toContain("w-7");
+    expect(classes).toContain("lg:h-7");
+    expect(classes).toContain("lg:w-7");
     expect(classes).not.toContain("lg:h-8");
+    expect(classes).toContain("h-11");
+    expect(classes).toContain("w-11");
+  });
+});
+
+describe("o aviso de junção antes do clique (#2801)", () => {
+  const AVISO =
+    "Este nome já existe no vocabulário — confirmar vai juntar as duas etiquetas numa só.";
+  const VIP: LinhaDeVocabulario = { ...OBRA, tag: "vip", cor: null };
+
+  it("mudar só a caixa da própria etiqueta NÃO avisa junção; o nome de OUTRA avisa", () => {
+    montar([OBRA, VIP]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Renomear" })[0]!);
+    const campo = screen.getByLabelText("Novo nome");
+
+    // "obra" → "OBRA" é renome: a lista de comparação não inclui a própria etiqueta.
+    fireEvent.change(campo, { target: { value: "OBRA" } });
+    expect(screen.queryByText(AVISO)).toBeNull();
+
+    // "obra" → "VIP" junta com a outra linha: o aviso aparece antes de confirmar.
+    fireEvent.change(campo, { target: { value: "VIP" } });
+    expect(screen.getByText(AVISO)).toBeTruthy();
   });
 });

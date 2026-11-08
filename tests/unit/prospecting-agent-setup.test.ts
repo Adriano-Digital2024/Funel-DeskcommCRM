@@ -6,6 +6,10 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   audit: vi.fn(),
   platform: vi.fn(),
+  catalogoDaConta: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []),
+}));
+vi.mock("@/lib/ai/catalogo/modelos-da-assinatura", () => ({
+  listarModelosDaAssinaturaOuVazio: mocks.catalogoDaConta,
 }));
 vi.mock("@/lib/ai/agents/publish", () => ({ publishAgentVersion: mocks.publish }));
 vi.mock("@/lib/ai/agents/create-draft", () => ({ createMcpAgentDraft: mocks.create }));
@@ -114,6 +118,8 @@ function database() {
               model: "model-tools",
               credential_id: null,
               display_name: "Modelo configurado",
+              // A consulta agora traz a capacidade e o filtro é no código (#2931).
+              supports_tools: true,
             },
           ],
         };
@@ -367,6 +373,46 @@ describe("model and router prerequisites", () => {
       credential_id: "cred-claude",
     });
   });
+  // #2931: os modelos da assinatura não estão em `ai_models`; a capacidade vem
+  // da lista DA CONTA. Sem isto, a Prospecção nunca escolhia a assinatura.
+  it("reuses a published subscription agent when its model is in the account list", async () => {
+    mocks.platform.mockReturnValue(null);
+    mocks.catalogoDaConta.mockResolvedValueOnce([{ model_id: "gpt-da-conta", supports_tools: true }]);
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("from ai_agents a"))
+          return {
+            rows: [
+              { provider: "openai-assinatura", model: "gpt-da-conta", credential_id: "cred-assinatura", display_name: null, supports_tools: null },
+            ],
+          };
+        return { rows: [] };
+      }),
+    } as unknown as pg.PoolClient;
+    expect(await resolveSetupModel(db, org, null, () => true)).toMatchObject({
+      provider: "openai-assinatura",
+      model: "gpt-da-conta",
+      credential_id: "cred-assinatura",
+    });
+  });
+  it("picks a subscription model from the account list, never from ai_models", async () => {
+    mocks.platform.mockReturnValue(null);
+    mocks.catalogoDaConta.mockResolvedValueOnce([{ model_id: "gpt-da-conta", supports_tools: true }]);
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("from organizations")) return { rows: [{ settings: {} }] };
+        if (sql.includes("from ai_provider_credentials"))
+          return { rows: [{ id: "cred-assinatura", provider: "openai-assinatura" }] };
+        if (sql.includes("from ai_models")) throw new Error("a assinatura não consulta ai_models");
+        return { rows: [] };
+      }),
+    } as unknown as pg.PoolClient;
+    expect(await resolveSetupModel(db, org, null, () => true)).toMatchObject({
+      provider: "openai-assinatura",
+      model: "gpt-da-conta",
+      credential_id: "cred-assinatura",
+    });
+  });
   it("validates all replacement agents before deleting existing router members", async () => {
     const db = {
       query: vi.fn(async (sql: string) => ({
@@ -385,5 +431,28 @@ describe("model and router prerequisites", () => {
     expect(vi.mocked(db.query).mock.calls.some(([sql]) => String(sql).startsWith("delete"))).toBe(
       false,
     );
+  });
+});
+
+describe("o agente da campanha conversa no idioma da organização (idioma.ts)", () => {
+  it("sem idioma passado, o prompt é o de sempre (português do Brasil)", () => {
+    expect(prospectingAgentPrompt(input)).toContain("Converse em português do Brasil");
+  });
+
+  it("organização em espanhol (es-MX): a versão criada manda conversar em espanhol, não em português", async () => {
+    const { pool, db } = database();
+    const original = db.query.getMockImplementation()!;
+    db.query.mockImplementation(async (sql: string, params: unknown[] = []) =>
+      sql.startsWith("select locale from organizations")
+        ? { rows: [{ locale: "es-MX" }] }
+        : original(sql, params),
+    );
+    await setupProspectingAgent(pool, admin, context, input);
+    const versao = mocks.create.mock.calls[0]![2].version as { system_prompt: string };
+    expect(versao.system_prompt).toContain("Converse em espanhol");
+    expect(versao.system_prompt).not.toContain("português do Brasil");
+    // A consulta do idioma é da organização do contexto, nunca de outra.
+    const consulta = db.query.mock.calls.find(([sql]) => String(sql).startsWith("select locale"));
+    expect(consulta?.[1]).toEqual([org]);
   });
 });

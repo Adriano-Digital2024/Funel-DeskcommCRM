@@ -34,7 +34,9 @@ import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useContactTagVocabulary } from "@/hooks/contacts/useContactTagVocabulary";
 import { useConversationTagVocabulary } from "@/hooks/inbox/useConversationTags";
 import { useConversationCounts } from "@/hooks/inbox/useConversationCounts";
-import type { Role, VisibilityMode } from "@/lib/auth/types";
+import { useDepoisDeMontar } from "@/hooks/ui/useDepoisDeMontar";
+import { roleAtLeast, type Role, type VisibilityMode } from "@/lib/auth/types";
+import { SeletorDeAtendente } from "@/components/inbox/SeletorDeAtendente";
 
 export type InboxTab = "unassigned" | "mine" | "all" | "closed" | "archived" | "ai";
 
@@ -71,7 +73,9 @@ const INBOX_TABS: { value: InboxTab; label: string }[] = [
  * É apenas cosmético — a RLS (G4-01) é quem garante o escopo mesmo via ?filter=all.
  */
 export function visibleInboxTabs(role: Role, mode: VisibilityMode | undefined): InboxTab[] {
-  const hideAll = role === "agent" && mode !== "all";
+  // `own_and_sector` (#4022): a conversa do colega do setor não está na Fila nem
+  // em Minhas — sem a aba Todas ela não aparece em lugar nenhum da tela.
+  const hideAll = role === "agent" && mode !== "all" && mode !== "own_and_sector";
   return INBOX_TABS.filter((t) => !(t.value === "all" && hideAll)).map((t) => t.value);
 }
 
@@ -93,6 +97,21 @@ export interface InboxFiltersValue {
   tagMode?: ModoDeEtiqueta;
   /** A aba "Grupos" (Task 10): manda `is_group=true` na listagem. */
   onlyGroups?: boolean;
+  /**
+   * Só as conversas deste atendente (id do usuário). Filtro de GERENTE para cima;
+   * ausente = todas. A aba Minhas já é "as minhas", então ali ele não vale.
+   */
+  assigned_to?: string;
+}
+
+/**
+ * Trocar de aba, por QUALQUER caminho (clique na aba ou setas de "Aba anterior"/
+ * "Próxima aba"). Minhas já é "só as minhas": um atendente escolhido antes não
+ * vale ali, e seguir com ele deixaria as outras abas contando o atendente com o
+ * seletor escondido.
+ */
+export function comAba(value: InboxFiltersValue, tab: InboxTab): InboxFiltersValue {
+  return { ...value, tab, ...(tab === "mine" ? { assigned_to: undefined } : {}) };
 }
 
 interface Props {
@@ -197,19 +216,33 @@ export function InboxFilters({ value, onChange }: Props) {
   // Os MESMOS filtros que a lista aplicou. Badge que conta o que a aba não mostra
   // manda o atendente procurar trabalho que não existe — a regra já estava escrita
   // na rota; faltava alcançar os filtros ao lado da aba.
+  // #3736 — o badge de contagem NÃO entra no HTML do servidor nem no primeiro
+  // render da hidratação: a contagem chega por react-query e, quando a resposta
+  // chegava no meio da hidratação, o `<span>` aparecia num render que o React
+  // comparava com um HTML sem ele (React #418, `isText=false`). `depoisDeMontar`
+  // é `false` no servidor E no snapshot de servidor do cliente, então o primeiro
+  // render do cliente é idêntico ao HTML por construção; o badge entra na
+  // re-renderização seguinte. Ver `hooks/ui/useDepoisDeMontar.ts`.
+  const depoisDeMontar = useDepoisDeMontar();
   const { data: counts } = useConversationCounts(activeOrg?.orgId ?? null, {
+    assigned_to: value.assigned_to,
     unread: value.onlyUnread,
     tag: etiquetas,
     tagMode: value.tagMode,
     channel_session_id: value.channel_session_id,
   });
 
+  // Filtro por ATENDENTE: só para gerente ou acima (a lista de quem atende é da
+  // gestão; o atendente comum continua vendo só o escopo dele, que a RLS impõe).
+  const podeFiltrarPorAtendente = roleAtLeast(activeOrg?.role, "manager");
+  const mostrarSeletorDeAtendente = podeFiltrarPorAtendente && value.tab !== "mine";
+
   const tabs = activeOrg
     ? visibleInboxTabs(activeOrg.role, activeOrg.visibility_mode)
     : INBOX_TABS.map((t) => t.value);
   const moveTab = (direction: -1 | 1) => {
     const next = tabs[tabs.indexOf(value.tab) + direction];
-    if (next) onChange({ ...value, tab: next });
+    if (next) onChange(comAba(value, next));
   };
   const countFor: Partial<Record<InboxTab, number>> = {
     // `fila` é o nome novo; `unassigned` é o alias que a rota versionada mantém.
@@ -388,7 +421,7 @@ export function InboxFilters({ value, onChange }: Props) {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder={t("Buscar por nome, telefone ou última mensagem…")}
-              className="h-9 rounded-full border-transparent bg-surface-elevated pl-9 text-sm shadow-none focus-visible:border-border focus-visible:bg-background"
+              className="h-9 rounded-full border-transparent bg-surface-elevated pl-9 shadow-none focus-visible:border-border focus-visible:bg-background"
               aria-label={t("Buscar conversas")}
             />
           </div>
@@ -428,7 +461,7 @@ export function InboxFilters({ value, onChange }: Props) {
           </button>
         </div>
 
-        {(showChannelSwitch || mostrarSeletorDeTag) && (
+        {(showChannelSwitch || mostrarSeletorDeTag || mostrarSeletorDeAtendente) && (
           <div className="flex gap-2">
             {showChannelSwitch && (
               <Select
@@ -596,6 +629,13 @@ export function InboxFilters({ value, onChange }: Props) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            {mostrarSeletorDeAtendente && (
+              <SeletorDeAtendente
+                value={value.assigned_to}
+                onChange={(atendente) => onChange({ ...value, assigned_to: atendente })}
+              />
+            )}
           </div>
         )}
       </div>
@@ -627,7 +667,7 @@ export function InboxFilters({ value, onChange }: Props) {
           filtro com o mesmo rótulo, e "Automático" continua "Automático". */}
       <Tabs
         value={value.tab}
-        onValueChange={(v) => onChange({ ...value, tab: v as InboxTab })}
+        onValueChange={(v) => onChange(comAba(value, v as InboxTab))}
         className="px-3"
       >
         <div className="flex items-center gap-1">
@@ -658,7 +698,7 @@ export function InboxFilters({ value, onChange }: Props) {
                   className="shrink-0 gap-1 rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-xs font-medium text-text-muted data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-text data-[state=active]:shadow-none"
                 >
                   {t(meta.label)}
-                  {typeof count === "number" && count > 0 && (
+                  {depoisDeMontar && typeof count === "number" && count > 0 && (
                     <span className="text-[11px] tabular-nums text-text-subtle">{count}</span>
                   )}
                 </TabsTrigger>

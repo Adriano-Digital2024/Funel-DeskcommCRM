@@ -13,12 +13,12 @@
  *
  * ═══ Por que a recusa é um gate FIXO, não uma `condition` declarável ═══
  *
- * Porque não pode ter exceção por regra mal configurada. O motor de
- * `conditions` (`lib/automation/conditions.ts`) trata campo ausente +
- * operador `neq` como sempre-verdadeiro, o que deixaria passar exatamente o
- * caso mais perigoso se alguém configurasse a condição errada. Invariante de
- * conformidade fica em código, não em configuração que um admin desliga sem
- * querer.
+ * Porque não pode ter exceção por regra mal configurada. Uma condição
+ * declarável (`lib/automation/conditions.ts`) depende de quem a configura —
+ * até o #2727, campo ausente + `neq` era verdadeiro —, e um admin pode
+ * escrevê-la errado ou apagá-la, deixando passar exatamente o caso mais
+ * perigoso. Invariante de conformidade fica em código, não em configuração
+ * que um admin desliga sem querer.
  *
  * ═══ Por que ele lê `declined_at`, e NÃO a ausência de `granted_at` ═══
  *
@@ -78,7 +78,9 @@ export type ResultadoDaGuarda =
  * lido antes de saber que há contato). Devolve o contato tipado e estreito
  * (só o que o chamador precisa) quando passa; a razão do bloqueio quando não.
  */
-export function checarGuardasDeContato(ctx: ActionCtx): ResultadoDaGuarda {
+export function checarGuardasDeContato(
+  ctx: Pick<ActionCtx, "context"> & Partial<ActionCtx>,
+): ResultadoDaGuarda {
   const contact = ctx.context.contact as ContatoDoContexto | undefined;
   if (!contact) return { ok: false, reason: "no_contact" };
   if (contact.is_blocked) return { ok: false, reason: "contact_blocked" };

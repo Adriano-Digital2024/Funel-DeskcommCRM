@@ -360,7 +360,9 @@ export function createOperatorTurnHandler(deps: InboundTurnDeps) {
     // ela — `inbound-turn` e `followup-turn` a têm, e o formato aqui é o deles
     // (registrar o motivo e sair). Persistir o desfecho de cada caminho é
     // trabalho separado, e vale para os quatro do mesmo jeito.
-    if (await isLeadInHandoff(pool, tenantId, leadId)) {
+    if (
+      await isLeadInHandoff(pool, tenantId, leadId, { conversationId: payload.conversation_id })
+    ) {
       // Único caminho que sai SEM apurar promessa, e é deliberado: quem assumiu
       // está com a conversa aberta na frente. Abrir um item de Central para uma
       // pessoa que já está olhando é o alarme redundante que ensina a ignorar os
@@ -485,7 +487,12 @@ export function createOperatorTurnHandler(deps: InboundTurnDeps) {
       try {
         mcp = await buildMcpTurnTools(
           deps.crmCfg,
-          { organizationId: tenantId, jobId: job.id, contactId: leadId },
+          {
+            organizationId: tenantId,
+            jobId: job.id,
+            contactId: leadId,
+            conversationId: payload.conversation_id,
+          },
           // A ponte lê `toolIds`; o papel guarda a lista dele em
           // `operatorToolIds`. A troca acontece AQUI, num ponto só, para que
           // nenhum caminho do Operador alcance a lista do Conversador por

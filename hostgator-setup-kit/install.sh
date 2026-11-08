@@ -41,6 +41,8 @@ dc() {
   # para arquivo ausente derrubaria o compose no meio da instalação.
   local -a ca=()
   if ca_do_supabase_ok && [ -f docker-compose.supabase-ca.yml ]; then ca=(-f docker-compose.supabase-ca.yml); fi
+  # Rede do Supabase self-hosted no mesmo host (gemea de _common.sh).
+  if rede_do_supabase_ok && [ -f docker-compose.supabase-rede.yml ]; then ca+=(-f docker-compose.supabase-rede.yml); fi
   if [ "${SINGLE_SERVER:-0}" = "1" ]; then
     # #2099: o overlay do proxy da hospedagem entra também no single-server.
     case "${REVERSE_PROXY:-caddy}" in
@@ -63,6 +65,9 @@ dc_files() {
   local sufixo=""
   if ca_do_supabase_ok && [ -f docker-compose.supabase-ca.yml ]; then
     sufixo=" -f docker-compose.supabase-ca.yml"
+  fi
+  if rede_do_supabase_ok && [ -f docker-compose.supabase-rede.yml ]; then
+    sufixo="${sufixo} -f docker-compose.supabase-rede.yml"
   fi
   if [ "${SINGLE_SERVER:-0}" = "1" ]; then
     case "${REVERSE_PROXY:-caddy}" in
@@ -110,10 +115,17 @@ ca_do_supabase() {
 # Idem _common.sh: silenciosa, para as decisões de montagem.
 ca_do_supabase_ok() { ca_do_supabase >/dev/null 2>&1; }
 
+# Gemea de _common.sh: rede docker de um Supabase self-hosted no mesmo host.
+rede_do_supabase_ok() {
+  [ -n "${SUPABASE_DOCKER_NETWORK:-}" ] && docker network inspect "$SUPABASE_DOCKER_NETWORK" >/dev/null 2>&1
+}
+
 pg_container() {
   local -a rede=() ca=()
   local caminho=""
-  [ -n "${PSQL_DOCKER_NETWORK:-}" ] && rede=(--network "$PSQL_DOCKER_NETWORK")
+  # Gêmea de _common.sh: sem PSQL_DOCKER_NETWORK, vale a rede do Supabase do mesmo host.
+  if [ -n "${PSQL_DOCKER_NETWORK:-}" ]; then rede=(--network "$PSQL_DOCKER_NETWORK")
+  elif rede_do_supabase_ok; then rede=(--network "$SUPABASE_DOCKER_NETWORK"); fi
   # `local caminho` separado de propósito: `local caminho="$(...)"` engole o
   # status do comando substituído e o `if` aceitaria CA quebrada como pronta.
   if caminho="$(ca_do_supabase 2>/dev/null)"; then
@@ -375,19 +387,34 @@ v_sb_key() {
     *) echo "$(t "Isso não parece uma chave do Supabase (elas começam com 'eyJ' ou 'sb_'). Pegue em Settings > API.")"; return 1;;
   esac
   [ -z "$url" ] && return 0
+  # ── A PROVA HTTP bate no Supabase LOCAL quando ele é desta VPS ──────────────
+  # No single-server a URL pública é servida pelo Caddy desta instalação, e ele
+  # só sobe DEPOIS desta fase: com o domínio atrás de proxy (Cloudflare laranja,
+  # o padrão do kit) a chamada abaixo volta 521 e a instalação PARA na fase 2,
+  # mandando conferir uma chave que está certa — medido numa VPS real, 10/10/2026.
+  # Quem responde à pergunta "esta chave serve?" é o gateway local, publicado só
+  # em loopback — a MESMA escolha que `v_supabase_url` já faz acima. O `ref` do
+  # JWT continua conferido contra a URL que o operador deu: aquela comparação é
+  # sobre o PROJETO, e essa não muda.
+  local prova="$url"
+  if [ "${SINGLE_SERVER:-0}" = "1" ]; then
+    case "${SUPABASE_INTERNAL_URL:-}" in
+      http://*|https://*) prova="$SUPABASE_INTERNAL_URL";;
+    esac
+  fi
   local code
   if [ "$want" = "service_role" ]; then
     # Rota de administração: a anon leva 401 aqui. É o que separa uma da outra.
     code="$(curl -s -o /dev/null -w '%{http_code}' -m 20 \
       -H "apikey: $key" -H "Authorization: Bearer $key" \
-      "$url/auth/v1/admin/users?page=1&per_page=1" 2>/dev/null)" || code=000
+      "$prova/auth/v1/admin/users?page=1&per_page=1" 2>/dev/null)" || code=000
   else
     # /auth/v1/settings é a rota que a anon PODE abrir. Não use /rest/v1/: ele
     # responde 401 "Only the service_role API key can be used for this endpoint"
     # até para a anon correta — validador que reprova o dado certo é pior que
     # nenhum. Provado nesta VPS: settings dá 200 para as chaves do projeto e 401
     # para lixo e para JWT de outro projeto.
-    code="$(curl -s -o /dev/null -w '%{http_code}' -m 20 -H "apikey: $key" "$url/auth/v1/settings" 2>/dev/null)" || code=000
+    code="$(curl -s -o /dev/null -w '%{http_code}' -m 20 -H "apikey: $key" "$prova/auth/v1/settings" 2>/dev/null)" || code=000
   fi
   case "$code" in
     2*) return 0;;
@@ -1032,6 +1059,25 @@ if [ -f "$PARTIAL_FILE" ]; then
   c_dim "$(t "  (o token do Supabase é de conta e nunca entra no rascunho: ele é perguntado de novo. Enter pula)")"
 fi
 
+# ARM64: resolver uma release publicada e conferir as quatro imagens e a WAHA
+# efetiva no índice OCI ANTES de criar projeto Supabase, rede, .env ou schema.
+# Uma tag Git pode existir antes do CI. Em AMD64 a versão segue a cascata de
+# sempre (mais abaixo): a sonda exige `docker buildx`, e toda imagem publicada
+# já tem amd64.
+PLATAFORMA_HOST="$(plataforma_oci_do_host "$(uname -m 2>/dev/null || true)" 2>/dev/null || true)"
+if [ "$PLATAFORMA_HOST" = linux/arm64 ]; then
+  RELEASE_TAG="$(ultima_release_estavel)"
+  VERSAO_ALVO="${RELEASE_TAG#v}"
+  WAHA_EFETIVA="${WAHA_IMAGE:-$(imagem_waha_padrao_para_host)}"
+  if [ -z "$RELEASE_TAG" ] || ! preflight_instalacao "$VERSAO_ALVO" "$PLATAFORMA_HOST" "$WAHA_EFETIVA"; then
+    c_red "$(t "✖ Não há release numérica completa para ARM64, ou a WAHA escolhida não oferece ARM64.")"
+    c_red "$(t "  Confira registry, visibilidade das quatro imagens e WAHA_IMAGE; depois repita.")"
+    # O painel genérico sugeriria down -v/drop schema antes de qualquer efeito.
+    trap - EXIT
+    exit 1
+  fi
+fi
+
 # ── Proxy reverso: quem está com as portas 80 e 443? ────────────────────────
 # Fica AQUI, logo depois de ler o .env e ANTES de qualquer coisa cara: era a
 # última etapa da fase 2, então quem esbarrava neste problema já tinha criado um
@@ -1368,7 +1414,8 @@ fi
 # que a versão não era nomeável.
 #
 # Resolvido no REMOTO porque o clone é `--depth 1` e não traz tag nenhuma.
-VERSAO_ALVO="$(ultima_versao_publicada "$REPO_URL")"
+# Em ARM64 a versão já foi resolvida e conferida pelo pré-voo, lá em cima.
+[ "$PLATAFORMA_HOST" = linux/arm64 ] || VERSAO_ALVO="$(ultima_versao_publicada "$REPO_URL")"
 
 # A tag do git é condição NECESSÁRIA, não suficiente: ela nasce minutos antes
 # das imagens, e `deskcomm-worker`/`deskcomm-scheduler` só passaram a existir
@@ -1380,7 +1427,9 @@ VERSAO_ALVO="$(ultima_versao_publicada "$REPO_URL")"
 # Cascata, do mais específico ao mais disponível. Cada nível pergunta pelas TRÊS
 # imagens juntas, porque instalar com elas desalinhadas é o defeito, não a
 # solução.
-if [ -n "$VERSAO_ALVO" ] && trio_publicado "$VERSAO_ALVO"; then
+if [ "$PLATAFORMA_HOST" = linux/arm64 ]; then
+  : # pré-voo OCI já passou
+elif [ -n "$VERSAO_ALVO" ] && trio_publicado "$VERSAO_ALVO"; then
   : # o caminho normal: as três publicadas na última versão
 elif trio_publicado "stable"; then
   c_ylw "$(t "⚠ A versão {1} ainda não tem as três imagens publicadas." "${VERSAO_ALVO:-$(t "mais recente")}")"
@@ -1734,6 +1783,14 @@ esac
   # ele era compilado aqui na VPS e nenhum update jamais o alcançava.
   envq WORKER_IMAGE "${IMG_WORKER}:${TAG_ALVO}"
   envq WORKER_PULL_POLICY "$PULL_POLICY_ALVO"
+  # O par de prazos do desligamento (#2823) — os dois GRAVADOS juntos porque um
+  # sem o outro é o defeito que a issue mediu: `WORKER_STOP_GRACE_PERIOD` é o que
+  # o compose passa ao `docker stop` (sem ele, o padrão de 10 s do Docker mata o
+  # contêiner antes dos 30 s que o worker se dá) e `SHUTDOWN_GRACE_MS` é o prazo
+  # INTERNO, contado do sinal. O de fora tem de ser maior; 40 s para 30 s dá 10 s
+  # de folga para fechar pool e healthz. Mexeu num, mexa no outro.
+  envq WORKER_STOP_GRACE_PERIOD "${WORKER_STOP_GRACE_PERIOD:-40s}"
+  envq SHUTDOWN_GRACE_MS "${SHUTDOWN_GRACE_MS:-30000}"
   envq SCHEDULER_IMAGE "${IMG_SCHEDULER}:${TAG_ALVO}"
   envq SCHEDULER_PULL_POLICY "$PULL_POLICY_ALVO"
   # A telefonia por SIP (profile `telefonia`, desligado por padrão) também segue
@@ -1876,10 +1933,8 @@ esac
   printf '# Opcional — sem ela a IA responde sem a base e pede o áudio em texto.\n'
   envq OPENAI_API_KEY "${OPENAI_API_KEY:-}"
   printf '# Web Push: aviso na bandeja do sistema com a aba do CRM fechada.\n'
-  printf '# Opcional e VAZIO por padrão — sem o par, os avisos aparecem só com o\n'
-  printf '# site aberto, que é exatamente o que acontecia antes. Para ligar:\n'
-  printf '#   npx web-push generate-vapid-keys\n'
-  printf '# e cole as duas chaves aqui (depois: docker compose up -d app).\n'
+  printf '# Gerado pelo install/update uma única vez. NÃO troque: trocar desliga\n'
+  printf '# os avisos de todo aparelho já inscrito.\n'
   envq VAPID_PUBLIC_KEY "${VAPID_PUBLIC_KEY:-}"
   envq VAPID_PRIVATE_KEY "${VAPID_PRIVATE_KEY:-}"
   printf '# Provisionamento por sistema externo (POST /api/v1/tenants/provision):\n'
@@ -1944,6 +1999,10 @@ esac
   fi
 } > .env
 chmod 600 .env
+# O par dos avisos com o app fechado (Web Push): gerado aqui uma única vez, pela
+# MESMA função que a atualização usa (`gravar_imagens`). Reexecutar o install
+# não troca nada: o `load_env` lá em cima trouxe o par, e o `envq` o regravou.
+completar_par_vapid .env
 # O .env definitivo existe: o rascunho cumpriu o papel e some — deixá-lo no
 # disco seria uma segunda cópia dos segredos, e desatualizada na primeira
 # correção que alguém fizer no .env.
@@ -2449,6 +2508,41 @@ else
   # "|| true": mesma família do pipe que matava o supabase-provision.sh — o
   # corpo passa de 200 bytes, o head fecha o pipe e o printf leva SIGPIPE.
   [ -n "$health_body" ] && c_dim "$(t "  última resposta: {1}" "$(printf '%s' "$health_body" | head -c 200 || true)")"
+fi
+
+# ── #2945: a PROVA de que a rota pública do Supabase chega ao GoTrue ────────
+#
+# Aqui, e não antes: é o ponto em que o app já respondeu saudável e o domínio já
+# está no ar — a mesma condição que faz a pergunta ter sentido. Antes do #2933
+# quem a respondia era, sem querer, o `v_sb_key()` da fase 2 (que batia em
+# `${NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, a URL pública, e morria em
+# "chave inválida" quando o Traefik sem as etiquetas entregava o pedido ao app);
+# o #2933 o mandou perguntar ao gateway INTERNO, que é o certo atrás de
+# Cloudflare laranja, e a instalação ficou SEM nenhuma prova da rota pública. O
+# #2099 é o defeito que a prova pegava: etiqueta do Traefik que não chegou ao
+# Envoy e um login que só falha depois, com a instalação já verde.
+#
+# O `SUPABASE_INTERNAL_URL` no guard não é enfeite: ele só existe quando o
+# Supabase é DESTA VPS (quem o grava é o install-single-server.sh). Num
+# Traefik com o Supabase na NUVEM a URL pública tem as APIs em outro host, e
+# `/auth/v1/settings` no domínio do CRM responderia 404 — o mesmo 404 de
+# "chave inválida" que o #2933 tirou da fase 2. Sem esta condição, a sonda
+# reprovaria uma instalação correta, que é pior que não sondar.
+#
+# A sonda devolve 0 (provado), 1 (a ASSINATURA do app: 404, ou o 3xx para
+# /login — a instalação PARA, com o diagnóstico do #2099) ou 2 (não provei, e
+# o motivo pode ser só o certificado do domínio ainda saindo). O 2 AVISA e
+# SEGUE (#2945): parar uma instalação certa por um `curl` que não provou nada
+# é o defeito que o próprio kit consertou no #2933, do outro lado da moeda.
+if [ "${REVERSE_PROXY:-caddy}" = "traefik" ] && [ -n "${SUPABASE_INTERNAL_URL:-}" ] && [ "${APP_SAUDAVEL:-0}" = 1 ]; then
+  step "$(t "Conferindo a rota pública do Supabase no Traefik")"
+  rota_publica_rc=0
+  rota_publica_msg="$(sondar_rota_publica_do_supabase "https://${DOMAIN}" "${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" 10 3)" || rota_publica_rc=$?
+  case "$rota_publica_rc" in
+    0) c_grn "$(t "✓ a rota pública /auth/v1/* chega ao GoTrue do Supabase (o Traefik está publicando as APIs)")" ;;
+    1) die "$rota_publica_msg" ;;
+    *) c_ylw "⚠ $rota_publica_msg" ;;
+  esac
 fi
 
 # O catálogo dos provedores diretos vem no baseline, mas a OpenRouter é grande
