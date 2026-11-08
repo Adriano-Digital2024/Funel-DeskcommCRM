@@ -177,6 +177,12 @@ backups/
 # commit posterior de remoção não tira o blob.
 .qa-backups/
 *.dump
+# Dump de banco feito à mão NA RAIZ do repo (`backup_antes_upstream_*.sql`,
+# `backup_db_*.sql`): 16 MB de dados de cliente ficaram como não rastreados, a um
+# `git add -A` de virar história permanente — e remover depois não tira o blob.
+# A âncora `/` é o que impede o padrão de esconder `.sql` que precisa viajar
+# (migrations em `supabase/migrations/`, fixtures, baseline).
+/backup*.sql
 docker-compose.override.yml
 .prova/
 
